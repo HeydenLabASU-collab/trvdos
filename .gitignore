@@ -14,3 +14,5 @@
 # Backup files #
 ###################
 *.backup
+backup/*
+old/*
