@@ -79,19 +79,28 @@ typedef struct {
 int inertiaTensorAngularMomentumLabFrame(int nAtomsInRes,double *masses, double *crd, double *vel, double *inertiaTensor, double *angMom) {
     int i;
 
-    for(i=0;i<nAtomsInRes;i++) {
-        inertiaTensor[0]+=masses[i]*(crd[3*i+1]*crd[3*i+1]+crd[3*i+2]*crd[3*i+2]);
-        inertiaTensor[4]+=masses[i]*(crd[3*i+0]*crd[3*i+0]+crd[3*i+2]*crd[3*i+2]);
-        inertiaTensor[8]+=masses[i]*(crd[3*i+0]*crd[3*i+0]+crd[3*i+1]*crd[3*i+1]);
-        inertiaTensor[1]-=masses[i]*crd[3*i+0]*crd[3*i+1];
-        inertiaTensor[2]-=masses[i]*crd[3*i+0]*crd[3*i+2];
-        inertiaTensor[5]-=masses[i]*crd[3*i+1]*crd[3*i+2];
-        inertiaTensor[3]=inertiaTensor[1];
-        inertiaTensor[6]=inertiaTensor[2];
-        inertiaTensor[7]=inertiaTensor[5];
-        angMom[0]+=masses[i]*(crd[3*i+1]*vel[3*i+2]-crd[3*i+2]*vel[3*i+1]);
-        angMom[1]+=masses[i]*(crd[3*i+2]*vel[3*i+0]-crd[3*i+0]*vel[3*i+2]);
-        angMom[2]+=masses[i]*(crd[3*i+0]*vel[3*i+1]-crd[3*i+1]*vel[3*i+0]);
+    if(nAtomsInRes==1) {
+        for(i=0;i<9;i++) {
+            inertiaTensor[i]=0.0;
+        }
+        for(i=0;i<3;i++) {
+            angMom[i]=0.0;
+        }
+    } else {
+        for(i=0;i<nAtomsInRes;i++) {
+            inertiaTensor[0]+=masses[i]*(crd[3*i+1]*crd[3*i+1]+crd[3*i+2]*crd[3*i+2]);
+            inertiaTensor[4]+=masses[i]*(crd[3*i+0]*crd[3*i+0]+crd[3*i+2]*crd[3*i+2]);
+            inertiaTensor[8]+=masses[i]*(crd[3*i+0]*crd[3*i+0]+crd[3*i+1]*crd[3*i+1]);
+            inertiaTensor[1]-=masses[i]*crd[3*i+0]*crd[3*i+1];
+            inertiaTensor[2]-=masses[i]*crd[3*i+0]*crd[3*i+2];
+            inertiaTensor[5]-=masses[i]*crd[3*i+1]*crd[3*i+2];
+            inertiaTensor[3]=inertiaTensor[1];
+            inertiaTensor[6]=inertiaTensor[2];
+            inertiaTensor[7]=inertiaTensor[5];
+            angMom[0]+=masses[i]*(crd[3*i+1]*vel[3*i+2]-crd[3*i+2]*vel[3*i+1]);
+            angMom[1]+=masses[i]*(crd[3*i+2]*vel[3*i+0]-crd[3*i+0]*vel[3*i+2]);
+            angMom[2]+=masses[i]*(crd[3*i+0]*vel[3*i+1]-crd[3*i+1]*vel[3*i+0]);
+        }
     }
     return 0;
 }
