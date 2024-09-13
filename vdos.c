@@ -95,13 +95,13 @@ typedef struct {
     long long rank;
 } t_dih;
 
-int allocResidues(t_residueList *residueList,int nRes) {
+int allocResidueList(t_residueList *residueList,int nRes) {
     residueList->residues=(t_residue*)malloc(nRes*sizeof(t_residue));
     residueList->nResidues=nRes;
     return 0;
 }
 
-int allocResidue(int nCorr,t_residue *res,int nAtoms,double *atomMasses,double resMass) {
+int allocResidue(int nCorr,t_residue *res,int nAtoms,double *atomMasses,double *pos,double *vel,double resMass) {
     int i;
     
     res->nAtoms=nAtoms;
@@ -110,6 +110,8 @@ int allocResidue(int nCorr,t_residue *res,int nAtoms,double *atomMasses,double r
     for(i=0;i<nAtoms;i++) {
         res->atomMasses[i]=atomMasses[i];
     }
+    res->atomCrdList=pos;
+    res->atomVelList=vel;
     return 0;
 }
 
