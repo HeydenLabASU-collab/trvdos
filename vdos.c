@@ -101,7 +101,7 @@ int allocResidues(t_residueList *residueList,int nRes) {
     return 0;
 }
 
-int allocResidue(int nCorr,t_residue *res,int nAtoms,double *atomMasses/*,double *pos, double *vel*/,double resMass) {
+int allocResidue(int nCorr,t_residue *res,int nAtoms,double *atomMasses,double resMass) {
     int i;
     
     res->nAtoms=nAtoms;
@@ -110,8 +110,6 @@ int allocResidue(int nCorr,t_residue *res,int nAtoms,double *atomMasses/*,double
     for(i=0;i<nAtoms;i++) {
         res->atomMasses[i]=atomMasses[i];
     }
-//    res->atomCrdList=pos;
-//    res->atomVelList=vel;
     return 0;
 }
 
