@@ -70,8 +70,9 @@ typedef struct {
     double *atomMasses;
     t_rotBond *rotBonds;
     /* (not neccessarily constant) pointer to accumulating data */
-    double inertia;
-    double logInertia;
+    /* for now they are constant */
+    double inertia[3];
+    double logInertia[3];
     double *totCorr;
     double *trCorr;
     double *rotCorr;
@@ -82,6 +83,12 @@ typedef struct {
     double *COMposBuffer;
     double *COMvelBuffer;
     double *wOmegaBuffer;
+    double inertiaTensor[9];
+    double rotAxes[3][3];
+    double angMomLab[3];
+    double angMomMol[3];
+    double omegaMol[3];
+    double omegaLab[3];
 } t_residue;
 
 typedef struct {
@@ -117,8 +124,10 @@ int allocResidue(int nCorr,t_residue *res,int nAtoms,double *atomMasses,double *
         res->atomVelListBuffer[i*3+1]=vel[i*3+1];
         res->atomVelListBuffer[i*3+2]=vel[i*3+2];
     }
-    res->inertia=0.0;
-    res->logInertia=0.0;
+    for(i=0;i<3;i++) {
+        res->inertia[i]=0.0;
+        res->logInertia[i]=0.0;
+    }
     res->totCorr=(double*)calloc(nCorr, sizeof(double));
     res->trCorr=(double*)calloc(nCorr, sizeof(double));
     res->rotCorr=(double*)calloc(nCorr, sizeof(double));
@@ -126,30 +135,38 @@ int allocResidue(int nCorr,t_residue *res,int nAtoms,double *atomMasses,double *
     return 0;
 }
 
-int inertiaTensorAngularMomentumLabFrame(int nAtomsInRes,double *masses, double *crd, double *vel, double *inertiaTensor, double *angMom) {
-    int i;
+int inertiaTensorAngularMomentum(t_residue *res,int tStep,int nCorr) {
+    int i,j;
+    int idx;
+    double m;
+    double *crd;
+    double *vel;
 
-    if(nAtomsInRes==1) {
+    idx = tStep % nCorr;
+    if(res->nAtoms==1) {
         for(i=0;i<9;i++) {
-            inertiaTensor[i]=0.0;
+            res->inertiaTensor[i]=0.0;
         }
         for(i=0;i<3;i++) {
-            angMom[i]=0.0;
+            res->angMomLab[i]=0.0;
         }
     } else {
-        for(i=0;i<nAtomsInRes;i++) {
-            inertiaTensor[0]+=masses[i]*(crd[3*i+1]*crd[3*i+1]+crd[3*i+2]*crd[3*i+2]);
-            inertiaTensor[4]+=masses[i]*(crd[3*i+0]*crd[3*i+0]+crd[3*i+2]*crd[3*i+2]);
-            inertiaTensor[8]+=masses[i]*(crd[3*i+0]*crd[3*i+0]+crd[3*i+1]*crd[3*i+1]);
-            inertiaTensor[1]-=masses[i]*crd[3*i+0]*crd[3*i+1];
-            inertiaTensor[2]-=masses[i]*crd[3*i+0]*crd[3*i+2];
-            inertiaTensor[5]-=masses[i]*crd[3*i+1]*crd[3*i+2];
-            inertiaTensor[3]=inertiaTensor[1];
-            inertiaTensor[6]=inertiaTensor[2];
-            inertiaTensor[7]=inertiaTensor[5];
-            angMom[0]+=masses[i]*(crd[3*i+1]*vel[3*i+2]-crd[3*i+2]*vel[3*i+1]);
-            angMom[1]+=masses[i]*(crd[3*i+2]*vel[3*i+0]-crd[3*i+0]*vel[3*i+2]);
-            angMom[2]+=masses[i]*(crd[3*i+0]*vel[3*i+1]-crd[3*i+1]*vel[3*i+0]);
+        for(i=0;i<res->nAtoms;i++) {
+            m=res->atomMasses[i];
+            crd=&res->atomCrdList[i*3];
+            vel=&res->atomVelListBuffer[idx*res->nAtoms*3+i*3];
+            res->inertiaTensor[0]+=m*(crd[1]*crd[1]+crd[2]*crd[2]);
+            res->inertiaTensor[4]+=m*(crd[0]*crd[0]+crd[2]*crd[2]);
+            res->inertiaTensor[8]+=m*(crd[0]*crd[0]+crd[1]*crd[1]);
+            res->inertiaTensor[1]-=m*crd[0]*crd[1];
+            res->inertiaTensor[2]-=m*crd[0]*crd[2];
+            res->inertiaTensor[5]-=m*crd[1]*crd[2];
+            res->inertiaTensor[3]=res->inertiaTensor[1];
+            res->inertiaTensor[6]=res->inertiaTensor[2];
+            res->inertiaTensor[7]=res->inertiaTensor[5];
+            res->angMomLab[0]+=m*(crd[1]*vel[2]-crd[2]*vel[1]);
+            res->angMomLab[1]+=m*(crd[2]*vel[0]-crd[0]*vel[2]);
+            res->angMomLab[2]+=m*(crd[0]*vel[1]-crd[1]*vel[0]);
         }
     }
     return 0;
