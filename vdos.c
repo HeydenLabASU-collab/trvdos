@@ -78,7 +78,6 @@ typedef struct {
     double *rotBondCorr;
     /* constant pointer to changing data */
     double *atomCrdList;
-    double *atomVelList;
     double *atomVelListBuffer;
     double *COMposBuffer;
     double *COMvelBuffer;
@@ -107,11 +106,23 @@ int allocResidue(int nCorr,t_residue *res,int nAtoms,double *atomMasses,double *
     res->nAtoms=nAtoms;
     res->resMass=resMass;
     res->atomMasses=(double*)malloc(nAtoms*sizeof(double));
+    res->atomCrdList=(double*)malloc(nAtoms*3*sizeof(double));
+    res->atomVelListBuffer=(double*)malloc(nCorr*nAtoms*3*sizeof(double));
     for(i=0;i<nAtoms;i++) {
         res->atomMasses[i]=atomMasses[i];
+        res->atomCrdList[i*3+0]=pos[i*3+0];
+        res->atomCrdList[i*3+1]=pos[i*3+1];
+        res->atomCrdList[i*3+2]=pos[i*3+2];
+        res->atomVelListBuffer[i*3+0]=vel[i*3+0];
+        res->atomVelListBuffer[i*3+1]=vel[i*3+1];
+        res->atomVelListBuffer[i*3+2]=vel[i*3+2];
     }
-    res->atomCrdList=pos;
-    res->atomVelList=vel;
+    res->inertia=0.0;
+    res->logInertia=0.0;
+    res->totCorr=(double*)calloc(nCorr, sizeof(double));
+    res->trCorr=(double*)calloc(nCorr, sizeof(double));
+    res->rotCorr=(double*)calloc(nCorr, sizeof(double));
+    res->rotBondCorr=(double*)calloc(nCorr, sizeof(double));
     return 0;
 }
 
