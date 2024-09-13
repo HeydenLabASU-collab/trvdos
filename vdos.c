@@ -62,19 +62,58 @@ typedef struct {
 } t_rotBond;
 
 typedef struct {
-    t_rotBond *rotBonds;
+    /* constant data */
+    int nAtoms;
+    double resMass;
     int nRotBonds;
-} t_rotBondSet;
+    /* constant pointer to constant data */
+    double *atomMasses;
+    t_rotBond *rotBonds;
+    /* (not neccessarily constant) pointer to accumulating data */
+    double inertia;
+    double logInertia;
+    double *totCorr;
+    double *trCorr;
+    double *rotCorr;
+    double *rotBondCorr;
+    /* constant pointer to changing data */
+    double *atomCrdList;
+    double *atomVelList;
+    double *atomVelListBuffer;
+    double *COMposBuffer;
+    double *COMvelBuffer;
+    double *wOmegaBuffer;
+} t_residue;
 
 typedef struct {
-    t_rotBondSet *rotBondSets;
-    int nRotBondSets;
-} t_rotBondSets;
+    t_residue *residues;
+    int nResidues;
+} t_residueList;
 
 typedef struct {
     int *indices;
     long long rank;
 } t_dih;
+
+int allocResidues(t_residueList *residueList,int nRes) {
+    residueList->residues=(t_residue*)malloc(nRes*sizeof(t_residue));
+    residueList->nResidues=nRes;
+    return 0;
+}
+
+int allocResidue(int nCorr,t_residue *res,int nAtoms,double *atomMasses/*,double *pos, double *vel*/,double resMass) {
+    int i;
+    
+    res->nAtoms=nAtoms;
+    res->resMass=resMass;
+    res->atomMasses=(double*)malloc(nAtoms*sizeof(double));
+    for(i=0;i<nAtoms;i++) {
+        res->atomMasses[i]=atomMasses[i];
+    }
+//    res->atomCrdList=pos;
+//    res->atomVelList=vel;
+    return 0;
+}
 
 int inertiaTensorAngularMomentumLabFrame(int nAtomsInRes,double *masses, double *crd, double *vel, double *inertiaTensor, double *angMom) {
     int i;
@@ -173,7 +212,7 @@ int dih_cmp(const void *a, const void *b)
         and positive if a > b */
 }
 
-int getRotBonds(t_rotBondSets *sets,int nSets,int *dihedAtomIndices,int nDih,int *resAtomIdxRange, int nCorr) {
+int getRotBonds(t_residueList *sets,int nSets,int *dihedAtomIndices,int nDih,int *resAtomIdxRange, int nCorr) {
     int i,j,k,l;
     int dih[4];
     int *tmp;
@@ -222,9 +261,6 @@ int getRotBonds(t_rotBondSets *sets,int nSets,int *dihedAtomIndices,int nDih,int
             dihList[i].rank+=((long long)(dihList[i].indices[3]-min+1));
         }
         qsort(dihList,nDih,sizeof(t_dih),dih_cmp);
-        
-        sets->rotBondSets=(t_rotBondSet*)malloc(nSets*sizeof(t_rotBondSet));
-        sets->nRotBondSets=nSets;
         tmp=(int*)malloc(nDih*sizeof(int));
 
         /*counting unique rotatable bonds: easy for sorted dihedrals*/
@@ -381,36 +417,33 @@ int getRotBonds(t_rotBondSets *sets,int nSets,int *dihedAtomIndices,int nDih,int
                 }
             }
             /*allocate memory for rotatable bonds of residue i in sets->rotBondSets[i]*/
-            sets->rotBondSets[i].nRotBonds=cnt;
-            sets->rotBondSets[i].rotBonds=(t_rotBond*)malloc(cnt*sizeof(t_rotBond));
+            sets->residues[i].nRotBonds=cnt;
+            sets->residues[i].rotBonds=(t_rotBond*)malloc(cnt*sizeof(t_rotBond));
             /*copy rotatable bonds into for residue 'i' into sets->rotBondSets[i].rotBonds */
             for(j=0;j<cnt;j++) {
                 l=tmp[j];
                 for(k=0;k<2;k++) {
-                    sets->rotBondSets[i].rotBonds[j].bondAtomIndices[k]=rotBonds[l].bondAtomIndices[k]-min;
+                    sets->residues[i].rotBonds[j].bondAtomIndices[k]=rotBonds[l].bondAtomIndices[k]-min;
                 }
                 for(k=0;k<rotBonds[l].nSat0;k++) {
-                    sets->rotBondSets[i].rotBonds[j].sat0AtomIndices[k]=rotBonds[l].sat0AtomIndices[k]-min;
+                    sets->residues[i].rotBonds[j].sat0AtomIndices[k]=rotBonds[l].sat0AtomIndices[k]-min;
                 }
-                sets->rotBondSets[i].rotBonds[j].nSat0=rotBonds[tmp[j]].nSat0;
+                sets->residues[i].rotBonds[j].nSat0=rotBonds[tmp[j]].nSat0;
                 for(k=0;k<rotBonds[l].nSat3;k++) {
-                    sets->rotBondSets[i].rotBonds[j].sat3AtomIndices[k]=rotBonds[l].sat3AtomIndices[k]-min;
+                    sets->residues[i].rotBonds[j].sat3AtomIndices[k]=rotBonds[l].sat3AtomIndices[k]-min;
                 }
-                sets->rotBondSets[i].rotBonds[j].nSat3=rotBonds[tmp[j]].nSat3;
-                sets->rotBondSets[i].rotBonds[j].inertia=0.0;
-                sets->rotBondSets[i].rotBonds[j].logInertia=0.0;
-                sets->rotBondSets[i].rotBonds[j].wOmegaBuffer=(double*)malloc(nCorr*sizeof(double));
+                sets->residues[i].rotBonds[j].nSat3=rotBonds[tmp[j]].nSat3;
+                sets->residues[i].rotBonds[j].inertia=0.0;
+                sets->residues[i].rotBonds[j].logInertia=0.0;
+                sets->residues[i].rotBonds[j].wOmegaBuffer=(double*)malloc(nCorr*sizeof(double));
             }
         }
         // fclose(debug);
-    } else {
-        sets->nRotBondSets=0;
-        sets->rotBondSets=NULL;
     }
     return 0;
 }
 
-int analyzeRotBondsInResidue(t_rotBondSet *set,double *masses, double *pos, double *vel, int tStep, int nCorr) {
+int analyzeRotBondsInResidue(t_residue *set,double *masses, double *pos, double *vel, int tStep, int nCorr) {
     int i,j,k,l;
     int idx;
     vector b0, b1, sat, satVel, center, axis, proj, perp, mom, angMom;
@@ -490,15 +523,15 @@ int analyzeRotBondsInResidue(t_rotBondSet *set,double *masses, double *pos, doub
     return 0;
 }
 
-int corrRotBonds(t_rotBondSets *sets, double *corr,int start, int nCorr) {
+int corrRotBonds(t_residueList *sets, double *corr,int start, int nCorr) {
     int i,j,k,l,m;
     int nSets;
-    t_rotBondSet *set;
+    t_residue *set;
     t_rotBond *rotBond;
 
-    nSets=sets->nRotBondSets;
+    nSets=sets->nResidues;
     for(i=0;i<nSets;i++) {
-        set=&sets->rotBondSets[i];
+        set=&sets->residues[i];
         for(j=0;j<nCorr;j++) {
             k = start % nCorr;
             l = (k + j) % nCorr;
