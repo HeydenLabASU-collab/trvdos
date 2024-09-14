@@ -66,111 +66,202 @@ typedef struct {
     int nAtoms;
     double resMass;
     int nRotBonds;
-    /* constant pointer to constant data */
+    int nAtomsSel;
     double *atomMasses;
+    double *atomMassesX3;
     t_rotBond *rotBonds;
-    /* (not neccessarily constant) pointer to accumulating data */
-    /* for now they are constant */
+    /* transient data */
     double inertia[3];
-    double logInertia[3];
-    double *totCorr;
-    double *trCorr;
-    double *rotCorr;
-    double *rotBondCorr;
-    /* constant pointer to changing data */
-    double *atomCrdList;
-    double *atomVelListBuffer;
-    double *COMposBuffer;
-    double *COMvelBuffer;
-    double *wOmegaBuffer;
     double inertiaTensor[9];
-    double rotAxes[3][3];
+    double rotAxes[9];
     double angMomLab[3];
     double angMomMol[3];
     double omegaMol[3];
     double omegaLab[3];
+    double *COMposBuffer;
+    double *COMvelBuffer;
+    double *wOmegaBuffer;
+    /* accumulating data */
+    double sumInertia[3];
+    double sumLogInertia[3];
+    double *totCorr;
+    double *trCorr;
+    double *rotCorr;
+    double *rotBondCorr;
+    int corrCnt;
+    /* pointers to elements of external arrays */
+    double *atomCrd;
+    double *atomVelOrigin;
+    double **atomVel;
+    /* offset in arrays above */
+    int offset;
+    /* number of double value in one time frame */
+    int frameSize;
 } t_residue;
 
 typedef struct {
     t_residue *residues;
     int nResidues;
+    double *totCorr;
 } t_residueList;
+
+typedef struct {
+    double *atomCrd;
+    double *atomVelBuffer;
+    double *atomVel;
+    int nCorr;
+    int nAtomsSel;
+} t_MDinfo;
 
 typedef struct {
     int *indices;
     long long rank;
 } t_dih;
 
-int allocResidueList(t_residueList *residueList,int nRes) {
+int allocResidueList(t_residueList *residueList,int nRes,int nCorr) {
     residueList->residues=(t_residue*)malloc(nRes*sizeof(t_residue));
     residueList->nResidues=nRes;
+    residueList->totCorr=(double*)calloc(nRes*nCorr,sizeof(double));
     return 0;
 }
 
-int allocResidue(int nCorr,t_residue *res,int nAtoms,double *atomMasses,double *pos,double *vel,double resMass) {
+int allocMDinfo(t_MDinfo *MDinfo, int nCorr, int nAtomsSel) {
     int i;
+    MDinfo->atomCrd=(double*)malloc(nAtomsSel*3*sizeof(double));
+    MDinfo->atomVelBuffer=(double*)malloc(nCorr*nAtomsSel*3*sizeof(double));
+    MDinfo->nCorr=nCorr;
+    MDinfo->nAtomsSel=nAtomsSel;
+    return 0;
+}
+
+int allocResidue(t_residue *res,int nAtoms,double *atomMasses,double resMass,int nAtomsSel,int nCorr) {
+    int i,j;
     
     res->nAtoms=nAtoms;
     res->resMass=resMass;
+    res->nAtomsSel=nAtomsSel;
+    res->frameSize=nAtomsSel*3;
     res->atomMasses=(double*)malloc(nAtoms*sizeof(double));
-    res->atomCrdList=(double*)malloc(nAtoms*3*sizeof(double));
-    res->atomVelListBuffer=(double*)malloc(nCorr*nAtoms*3*sizeof(double));
+    res->atomMassesX3=(double*)malloc(nAtoms*3*sizeof(double));
     for(i=0;i<nAtoms;i++) {
         res->atomMasses[i]=atomMasses[i];
-        res->atomCrdList[i*3+0]=pos[i*3+0];
-        res->atomCrdList[i*3+1]=pos[i*3+1];
-        res->atomCrdList[i*3+2]=pos[i*3+2];
-        res->atomVelListBuffer[i*3+0]=vel[i*3+0];
-        res->atomVelListBuffer[i*3+1]=vel[i*3+1];
-        res->atomVelListBuffer[i*3+2]=vel[i*3+2];
+        for(j=0;j<3;j++) {
+            res->atomMassesX3[i*3+j]=atomMasses[i];
+        }
     }
     for(i=0;i<3;i++) {
-        res->inertia[i]=0.0;
-        res->logInertia[i]=0.0;
+        res->sumInertia[i]=0.0;
+        res->sumLogInertia[i]=0.0;
     }
     res->totCorr=(double*)calloc(nCorr, sizeof(double));
-    res->trCorr=(double*)calloc(nCorr, sizeof(double));
-    res->rotCorr=(double*)calloc(nCorr, sizeof(double));
-    res->rotBondCorr=(double*)calloc(nCorr, sizeof(double));
+    res->corrCnt=0;
     return 0;
 }
 
-int inertiaTensorAngularMomentum(t_residue *res,int tStep,int nCorr) {
-    int i,j;
-    int idx;
-    double m;
-    double *crd;
-    double *vel;
+int setPointers(t_residueList *residueList,t_MDinfo *MDinfo) {
+    int i;
+    int offset=0;
 
-    idx = tStep % nCorr;
-    if(res->nAtoms==1) {
-        for(i=0;i<9;i++) {
-            res->inertiaTensor[i]=0.0;
+    for(i=0;i<residueList->nResidues;i++) {
+        residueList->residues[i].offset=offset;
+        residueList->residues[i].atomCrd=MDinfo->atomCrd;
+        residueList->residues[i].atomVelOrigin=MDinfo->atomVelBuffer;
+        residueList->residues[i].atomVel=&(MDinfo->atomVel);
+        offset+=residueList->residues[i].nAtoms*3;
+    }
+    return 0;
+}
+
+int computeTotalVDoS(t_residue *res,int nCorr) {
+    int i,j,k;
+    int bufferSize;
+    double mass;
+    double *m,*v1,*v2;
+
+    bufferSize=nCorr*res->frameSize;
+    m=res->atomMassesX3;
+    v1=*res->atomVel;
+    for(i=0;i<nCorr;i++) {
+        k = (((*res->atomVel)+(i*res->frameSize))-res->atomVelOrigin) % bufferSize;
+        v2=&res->atomVelOrigin[k];
+        for(j=0;j<res->nAtoms*3;j++) {
+            res->totCorr[i]+=m[j]*v1[j]*v2[j];
         }
-        for(i=0;i<3;i++) {
-            res->angMomLab[i]=0.0;
-        }
-    } else {
-        for(i=0;i<res->nAtoms;i++) {
-            m=res->atomMasses[i];
-            crd=&res->atomCrdList[i*3];
-            vel=&res->atomVelListBuffer[idx*res->nAtoms*3+i*3];
-            res->inertiaTensor[0]+=m*(crd[1]*crd[1]+crd[2]*crd[2]);
-            res->inertiaTensor[4]+=m*(crd[0]*crd[0]+crd[2]*crd[2]);
-            res->inertiaTensor[8]+=m*(crd[0]*crd[0]+crd[1]*crd[1]);
-            res->inertiaTensor[1]-=m*crd[0]*crd[1];
-            res->inertiaTensor[2]-=m*crd[0]*crd[2];
-            res->inertiaTensor[5]-=m*crd[1]*crd[2];
-            res->inertiaTensor[3]=res->inertiaTensor[1];
-            res->inertiaTensor[6]=res->inertiaTensor[2];
-            res->inertiaTensor[7]=res->inertiaTensor[5];
-            res->angMomLab[0]+=m*(crd[1]*vel[2]-crd[2]*vel[1]);
-            res->angMomLab[1]+=m*(crd[2]*vel[0]-crd[0]*vel[2]);
-            res->angMomLab[2]+=m*(crd[0]*vel[1]-crd[1]*vel[0]);
+    }
+    res->corrCnt++;
+ }
+
+int processStep(int tStep,t_MDinfo *MDinfo,double *crds,double *vels,t_residueList *residueList,int nCorr) {
+    int i;
+    int velBufferOffset=(tStep % MDinfo->nCorr)*MDinfo->nAtomsSel*3;
+
+    for(i=0;i<3*MDinfo->nAtomsSel;i++) {
+        MDinfo->atomCrd[i]=crds[i];
+        MDinfo->atomVelBuffer[velBufferOffset+i]=vels[i];
+    }
+    MDinfo->atomVel=MDinfo->atomVelBuffer+velBufferOffset;
+    if(tStep>=nCorr-1) {
+        for(i=0;i<residueList->nResidues;i++) {
+            computeTotalVDoS(&(residueList->residues[i]),nCorr);
         }
     }
     return 0;
 }
+
+int postProcess(t_residueList *residueList,int nCorr) {
+    int i,j;
+    int normFactor;
+
+    for(i=0;i<residueList->nResidues;i++) {
+        normFactor=residueList->residues[i].corrCnt;
+        for(j=0;j<nCorr;j++) {
+            residueList->residues[i].totCorr[j]/=normFactor;
+            residueList->totCorr[j]+=residueList->residues[i].totCorr[j];
+        }
+    }
+    normFactor=residueList->nResidues;
+    for(j=0;j<nCorr;j++) {
+        residueList->totCorr[j]/=normFactor;
+    }
+    return 0;
+}
+
+// int inertiaTensorAngularMomentum(t_residue *res,int tStep,int nCorr) {
+//     int i,j;
+//     int idx;
+//     double m;
+//     double *crd;
+//     double *vel;
+
+//     idx = tStep % nCorr;
+//     if(res->nAtoms==1) {
+//         for(i=0;i<9;i++) {
+//             res->inertiaTensor[i]=0.0;
+//         }
+//         for(i=0;i<3;i++) {
+//             res->angMomLab[i]=0.0;
+//         }
+//     } else {
+//         for(i=0;i<res->nAtoms;i++) {
+//             m=res->atomMasses[i];
+//             crd=&res->atomCrdList[i*3];
+//             vel=&res->atomVelListBuffer[idx*res->nAtoms*3+i*3];
+//             res->inertiaTensor[0]+=m*(crd[1]*crd[1]+crd[2]*crd[2]);
+//             res->inertiaTensor[4]+=m*(crd[0]*crd[0]+crd[2]*crd[2]);
+//             res->inertiaTensor[8]+=m*(crd[0]*crd[0]+crd[1]*crd[1]);
+//             res->inertiaTensor[1]-=m*crd[0]*crd[1];
+//             res->inertiaTensor[2]-=m*crd[0]*crd[2];
+//             res->inertiaTensor[5]-=m*crd[1]*crd[2];
+//             res->inertiaTensor[3]=res->inertiaTensor[1];
+//             res->inertiaTensor[6]=res->inertiaTensor[2];
+//             res->inertiaTensor[7]=res->inertiaTensor[5];
+//             res->angMomLab[0]+=m*(crd[1]*vel[2]-crd[2]*vel[1]);
+//             res->angMomLab[1]+=m*(crd[2]*vel[0]-crd[0]*vel[2]);
+//             res->angMomLab[2]+=m*(crd[0]*vel[1]-crd[1]*vel[0]);
+//         }
+//     }
+//     return 0;
+// }
 
 int applyAxes(double *inertia, double *rotAxesTrans, double *angMomLab, double *angMomMol, double *wOmegaMol,int nAtomsInRes, double *pos, double *vel) {
     int i,j;
