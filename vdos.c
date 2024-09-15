@@ -78,7 +78,11 @@ typedef struct {
     double omegaMol[3];
     double omegaLab[3];
     double *COMposBuffer;
+    double *COMposCurrent;
+    double *COMposCorrRef;
     double *COMvelBuffer;
+    double *COMvelCurrent;
+    double *COMvelCorrRef;
     double *wOmegaBuffer;
     /* accumulating data */
     double sumInertia[3];
@@ -96,6 +100,7 @@ typedef struct {
     t_residue *residues;
     int nResidues;
     double *totCorr;
+    double *trCorr;
 } t_residueList;
 
 typedef struct {
@@ -103,7 +108,8 @@ typedef struct {
     double *atomCrd;
     int bufferSize;
     double *atomVelBuffer;
-    double *atomVel;
+    double *atomVelCurrent;
+    double *atomVelCorrRef;
     int nCorr;
     int nAtomsSel;
 } t_MDinfo;
@@ -116,7 +122,8 @@ typedef struct {
 int allocResidueList(t_residueList *residueList,int nRes,int nCorr) {
     residueList->residues=(t_residue*)malloc(nRes*sizeof(t_residue));
     residueList->nResidues=nRes;
-    residueList->totCorr=(double*)calloc(nRes*nCorr,sizeof(double));
+    residueList->totCorr=(double*)calloc(nCorr,sizeof(double));
+    residueList->trCorr=(double*)calloc(nCorr*3,sizeof(double));
     return 0;
 }
 
@@ -127,7 +134,6 @@ int allocMDinfo(t_MDinfo *MDinfo, int nCorr, int nAtomsSel) {
     MDinfo->atomCrd=(double*)malloc(MDinfo->frameSize*sizeof(double));
     MDinfo->bufferSize=nCorr*MDinfo->frameSize;
     MDinfo->atomVelBuffer=(double*)malloc(MDinfo->bufferSize*sizeof(double));
-    MDinfo->atomVel=MDinfo->atomVelBuffer;
     MDinfo->nCorr=nCorr;
     MDinfo->nAtomsSel=nAtomsSel;
     return 0;
@@ -151,6 +157,9 @@ int allocResidue(t_residue *res,int nAtoms,double *atomMasses,double resMass,int
         res->sumLogInertia[i]=0.0;
     }
     res->totCorr=(double*)calloc(nCorr, sizeof(double));
+    res->COMposBuffer=(double*)calloc(nCorr*3, sizeof(double));
+    res->COMvelBuffer=(double*)calloc(nCorr*3, sizeof(double));
+    res->trCorr=(double*)calloc(nCorr*3, sizeof(double));
     res->corrCnt=0;
     return 0;
 }
@@ -166,13 +175,12 @@ int setArrayIndexOffsets(t_residueList *residueList,t_MDinfo *MDinfo) {
     return 0;
 }
 
-int computeTotalVDoS(t_residue *res,t_MDinfo *MDinfo) {
+int computeTotalVACF(t_residue *res,t_MDinfo *MDinfo) {
     int i,j,k;
-    double mass;
     double *m,*v1,*v2;
 
     m=res->atomMassesX3;
-    v1=MDinfo->atomVel+res->offset;
+    v1=MDinfo->atomVelCorrRef+res->offset;
     for(i=0;i<MDinfo->nCorr;i++) {
         k = ((v1+(i*MDinfo->frameSize))-MDinfo->atomVelBuffer) % MDinfo->bufferSize;
         v2=MDinfo->atomVelBuffer+k;
@@ -180,32 +188,91 @@ int computeTotalVDoS(t_residue *res,t_MDinfo *MDinfo) {
             res->totCorr[i]+=m[j]*v1[j]*v2[j];
         }
     }
-    res->corrCnt++;
- }
+}
+
+int computeCOM(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
+    int i;
+    double *m,*crd,*vel;
+
+    m=res->atomMasses;
+    res->COMposCurrent=res->COMposBuffer+bufferShift;
+    res->COMvelCurrent=res->COMvelBuffer+bufferShift;
+    crd=MDinfo->atomCrd+res->offset;
+    vel=MDinfo->atomVelCurrent+res->offset;
+    for(i=0;i<3;i++) {
+        res->COMposCurrent[i]=0.0;
+        res->COMvelCurrent[i]=0.0;
+    }
+    for(i=0;i<res->nAtoms;i++) {
+        res->COMposCurrent[0]+=m[i]*crd[i*3+0];
+        res->COMposCurrent[1]+=m[i]*crd[i*3+1];
+        res->COMposCurrent[2]+=m[i]*crd[i*3+2];
+        res->COMvelCurrent[0]+=m[i]*vel[i*3+0];
+        res->COMvelCurrent[1]+=m[i]*vel[i*3+1];
+        res->COMvelCurrent[2]+=m[i]*vel[i*3+2];
+    }
+    for(i=0;i<3;i++) {
+        res->COMposCurrent[i]/=res->resMass;
+        res->COMvelCurrent[i]/=res->resMass;
+    }
+    return 0;
+}
+
+int computeTransVACF(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
+    int i,j,k;
+    double mass;
+    double *v1,*v2;
+
+    mass=res->resMass;
+    v1=res->COMvelBuffer+bufferShift;
+    for(i=0;i<MDinfo->nCorr;i++) {
+        k = ((v1+(i*3))-res->COMvelBuffer) % (MDinfo->nCorr*3);
+        v2=res->COMvelBuffer+k;
+        for(j=0;j<3;j++) {
+            res->trCorr[i*3+j]+=mass*v1[j]*v2[j];
+        }
+    }
+}
 
 int processStep(int tStep,t_MDinfo *MDinfo,double *crds,double *vels,t_residueList *residueList,int nCorr) {
     int i;
     int atomVelBufferShift;
+    int resVecsBufferShiftCurrent;
+    int resVecsBufferShiftCorrRef;
+
+    /* set MDinfo->atomVelCurrent for current time step */
+    atomVelBufferShift=(tStep%MDinfo->nCorr)*MDinfo->nAtomsSel*3;
+    MDinfo->atomVelCurrent=MDinfo->atomVelBuffer+atomVelBufferShift;
+    /* set buffer shift for computation of residue property vectors*/
+    resVecsBufferShiftCurrent=(tStep%MDinfo->nCorr)*3;
 
     for(i=0;i<3*MDinfo->nAtomsSel;i++) {
         MDinfo->atomCrd[i]=crds[i];
-        MDinfo->atomVel[i]=vels[i];
+        MDinfo->atomVelCurrent[i]=vels[i];
     }
-    /* prep MDinfo->atomVel for next time step and analysis functions*/
-    atomVelBufferShift=((tStep+1)%MDinfo->nCorr)*MDinfo->nAtomsSel*3;
-    MDinfo->atomVel=MDinfo->atomVelBuffer+atomVelBufferShift;
-    
+
     if(tStep>=nCorr-1) {
-        #pragma omp parallel for
-        for(i=0;i<residueList->nResidues;i++) {
-            computeTotalVDoS(&residueList->residues[i],MDinfo);
+        /* prep MDinfo->atomVelCorrRef for correlation functions*/
+        atomVelBufferShift=((tStep+1)%MDinfo->nCorr)*MDinfo->nAtomsSel*3;
+        MDinfo->atomVelCorrRef=MDinfo->atomVelBuffer+atomVelBufferShift;
+        /* set buffer shift for correlation function of residue property vectors*/
+        resVecsBufferShiftCorrRef=((tStep+1)%MDinfo->nCorr)*3;
+    }
+    
+    #pragma omp parallel for
+    for(i=0;i<residueList->nResidues;i++) {
+        computeCOM(resVecsBufferShiftCurrent,&residueList->residues[i],MDinfo);
+        if(tStep>=nCorr-1) {
+            computeTotalVACF(&residueList->residues[i],MDinfo);
+            computeTransVACF(resVecsBufferShiftCorrRef,&residueList->residues[i],MDinfo);
+            residueList->residues[i].corrCnt++;
         }
     }
     return 0;
 }
 
 int postProcess(t_residueList *residueList,int nCorr) {
-    int i,j;
+    int i,j,k;
     int normFactor;
 
     for(i=0;i<residueList->nResidues;i++) {
@@ -213,11 +280,18 @@ int postProcess(t_residueList *residueList,int nCorr) {
         for(j=0;j<nCorr;j++) {
             residueList->residues[i].totCorr[j]/=normFactor;
             residueList->totCorr[j]+=residueList->residues[i].totCorr[j];
+            for(k=0;k<3;k++) {
+                residueList->residues[i].trCorr[j*3+k]/=normFactor;
+                residueList->trCorr[j*3+k]+=residueList->residues[i].trCorr[j*3+k];
+            }
         }
     }
     normFactor=residueList->nResidues;
     for(j=0;j<nCorr;j++) {
         residueList->totCorr[j]/=normFactor;
+        for(k=0;k<3;k++) {
+            residueList->trCorr[j*3+k]/=normFactor;
+        }
     }
     return 0;
 }
