@@ -66,7 +66,6 @@ typedef struct {
     int nAtoms;
     double resMass;
     int nRotBonds;
-    int nAtomsSel;
     double *atomMasses;
     double *atomMassesX3;
     t_rotBond *rotBonds;
@@ -89,14 +88,8 @@ typedef struct {
     double *rotCorr;
     double *rotBondCorr;
     int corrCnt;
-    /* pointers to elements of external arrays */
-    double *atomCrd;
-    double *atomVelOrigin;
-    double **atomVel;
-    /* offset in arrays above */
+    /* offset in MD info arrays */
     int offset;
-    /* number of double value in one time frame */
-    int frameSize;
 } t_residue;
 
 typedef struct {
@@ -106,7 +99,9 @@ typedef struct {
 } t_residueList;
 
 typedef struct {
+    int frameSize;
     double *atomCrd;
+    int bufferSize;
     double *atomVelBuffer;
     double *atomVel;
     int nCorr;
@@ -127,8 +122,12 @@ int allocResidueList(t_residueList *residueList,int nRes,int nCorr) {
 
 int allocMDinfo(t_MDinfo *MDinfo, int nCorr, int nAtomsSel) {
     int i;
-    MDinfo->atomCrd=(double*)malloc(nAtomsSel*3*sizeof(double));
-    MDinfo->atomVelBuffer=(double*)malloc(nCorr*nAtomsSel*3*sizeof(double));
+
+    MDinfo->frameSize=nAtomsSel*3;
+    MDinfo->atomCrd=(double*)malloc(MDinfo->frameSize*sizeof(double));
+    MDinfo->bufferSize=nCorr*MDinfo->frameSize;
+    MDinfo->atomVelBuffer=(double*)malloc(MDinfo->bufferSize*sizeof(double));
+    MDinfo->atomVel=MDinfo->atomVelBuffer;
     MDinfo->nCorr=nCorr;
     MDinfo->nAtomsSel=nAtomsSel;
     return 0;
@@ -139,8 +138,6 @@ int allocResidue(t_residue *res,int nAtoms,double *atomMasses,double resMass,int
     
     res->nAtoms=nAtoms;
     res->resMass=resMass;
-    res->nAtomsSel=nAtomsSel;
-    res->frameSize=nAtomsSel*3;
     res->atomMasses=(double*)malloc(nAtoms*sizeof(double));
     res->atomMassesX3=(double*)malloc(nAtoms*3*sizeof(double));
     for(i=0;i<nAtoms;i++) {
@@ -158,32 +155,27 @@ int allocResidue(t_residue *res,int nAtoms,double *atomMasses,double resMass,int
     return 0;
 }
 
-int setPointers(t_residueList *residueList,t_MDinfo *MDinfo) {
+int setArrayIndexOffsets(t_residueList *residueList,t_MDinfo *MDinfo) {
     int i;
     int offset=0;
 
     for(i=0;i<residueList->nResidues;i++) {
         residueList->residues[i].offset=offset;
-        residueList->residues[i].atomCrd=MDinfo->atomCrd;
-        residueList->residues[i].atomVelOrigin=MDinfo->atomVelBuffer;
-        residueList->residues[i].atomVel=&(MDinfo->atomVel);
         offset+=residueList->residues[i].nAtoms*3;
     }
     return 0;
 }
 
-int computeTotalVDoS(t_residue *res,int nCorr) {
+int computeTotalVDoS(t_residue *res,t_MDinfo *MDinfo) {
     int i,j,k;
-    int bufferSize;
     double mass;
     double *m,*v1,*v2;
 
-    bufferSize=nCorr*res->frameSize;
     m=res->atomMassesX3;
-    v1=*res->atomVel;
-    for(i=0;i<nCorr;i++) {
-        k = (((*res->atomVel)+(i*res->frameSize))-res->atomVelOrigin) % bufferSize;
-        v2=&res->atomVelOrigin[k];
+    v1=MDinfo->atomVel+res->offset;
+    for(i=0;i<MDinfo->nCorr;i++) {
+        k = ((v1+(i*MDinfo->frameSize))-MDinfo->atomVelBuffer) % MDinfo->bufferSize;
+        v2=MDinfo->atomVelBuffer+k;
         for(j=0;j<res->nAtoms*3;j++) {
             res->totCorr[i]+=m[j]*v1[j]*v2[j];
         }
@@ -193,16 +185,20 @@ int computeTotalVDoS(t_residue *res,int nCorr) {
 
 int processStep(int tStep,t_MDinfo *MDinfo,double *crds,double *vels,t_residueList *residueList,int nCorr) {
     int i;
-    int velBufferOffset=(tStep % MDinfo->nCorr)*MDinfo->nAtomsSel*3;
+    int atomVelBufferShift;
 
     for(i=0;i<3*MDinfo->nAtomsSel;i++) {
         MDinfo->atomCrd[i]=crds[i];
-        MDinfo->atomVelBuffer[velBufferOffset+i]=vels[i];
+        MDinfo->atomVel[i]=vels[i];
     }
-    MDinfo->atomVel=MDinfo->atomVelBuffer+velBufferOffset;
+    /* prep MDinfo->atomVel for next time step and analysis functions*/
+    atomVelBufferShift=((tStep+1)%MDinfo->nCorr)*MDinfo->nAtomsSel*3;
+    MDinfo->atomVel=MDinfo->atomVelBuffer+atomVelBufferShift;
+    
     if(tStep>=nCorr-1) {
+        #pragma omp parallel for
         for(i=0;i<residueList->nResidues;i++) {
-            computeTotalVDoS(&(residueList->residues[i]),nCorr);
+            computeTotalVDoS(&residueList->residues[i],MDinfo);
         }
     }
     return 0;
