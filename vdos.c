@@ -651,82 +651,6 @@ int postProcess(t_residueList *residueList,int nCorr) {
     return 0;
 }
 
-// int inertiaTensorAngularMomentum(t_residue *res,int tStep,int nCorr) {
-//     int i,j;
-//     int idx;
-//     double m;
-//     double *crd;
-//     double *vel;
-
-//     idx = tStep % nCorr;
-//     if(res->nAtoms==1) {
-//         for(i=0;i<9;i++) {
-//             res->inertiaTensor[i]=0.0;
-//         }
-//         for(i=0;i<3;i++) {
-//             res->angMomLab[i]=0.0;
-//         }
-//     } else {
-//         for(i=0;i<res->nAtoms;i++) {
-//             m=res->atomMasses[i];
-//             crd=&res->atomCrdList[i*3];
-//             vel=&res->atomVelListBuffer[idx*res->nAtoms*3+i*3];
-//             res->inertiaTensor[0]+=m*(crd[1]*crd[1]+crd[2]*crd[2]);
-//             res->inertiaTensor[4]+=m*(crd[0]*crd[0]+crd[2]*crd[2]);
-//             res->inertiaTensor[8]+=m*(crd[0]*crd[0]+crd[1]*crd[1]);
-//             res->inertiaTensor[1]-=m*crd[0]*crd[1];
-//             res->inertiaTensor[2]-=m*crd[0]*crd[2];
-//             res->inertiaTensor[5]-=m*crd[1]*crd[2];
-//             res->inertiaTensor[3]=res->inertiaTensor[1];
-//             res->inertiaTensor[6]=res->inertiaTensor[2];
-//             res->inertiaTensor[7]=res->inertiaTensor[5];
-//             res->angMomLab[0]+=m*(crd[1]*vel[2]-crd[2]*vel[1]);
-//             res->angMomLab[1]+=m*(crd[2]*vel[0]-crd[0]*vel[2]);
-//             res->angMomLab[2]+=m*(crd[0]*vel[1]-crd[1]*vel[0]);
-//         }
-//     }
-//     return 0;
-// }
-
-// int applyAxes(double *inertia, double *rotAxesTrans, double *angMomLab, double *angMomMol, double *wOmegaMol,int nAtomsInRes, double *pos, double *vel) {
-//     int i,j;
-//     vector omegaMol;
-//     vector omegaLab;
-//     vector tmp;
-//     vector radVel;
-    
-//     /*rotate angular momentum from lab frame into molecular frame*/
-//     for(i=0;i<3;i++) {
-//         angMomMol[i]=0.0;
-//         for(j=0;j<3;j++) {
-//             angMomMol[i]+=rotAxesTrans[j*3+i]*angMomLab[j];
-//         }
-//     }
-//     /*convert angular momentum into weighted rotational velocity*/
-//     for(i=0;i<3;i++) {
-//         wOmegaMol[i]=angMomMol[i]/sqrt(inertia[i]);
-//     }
-//     /*convert angular momentum into rotational velocity*/
-//     for(i=0;i<3;i++) {
-//         omegaMol[i]=angMomMol[i]/inertia[i];
-//     }
-//     /*rotate rotational velocity into lab frame*/
-//     for(i=0;i<3;i++) {
-//         omegaLab[i]=0.0;
-//         for(j=0;j<3;j++) {
-//             omegaLab[i]+=rotAxesTrans[i*3+j]*omegaMol[j];
-//         }
-//     }
-//     for(i=0;i<nAtomsInRes;i++) {
-//         vecCopy(&pos[i*3],&tmp);
-//         vecCross(omegaLab,tmp,&radVel);
-//         for(j=0;j<3;j++) {
-//             vel[i*3+j]-=radVel[j];
-//         }
-//     }
-//     return 0;
-// }
-
 /* qsort int comparison function */
 int int_cmp(const void *a, const void *b)
 {
@@ -986,25 +910,3 @@ int getRotBonds(t_residueList *sets,int nSets,int *dihedAtomIndices,int nDih,int
     }
     return 0;
 }
-
-// int corrAtomsRes(int nAtomsRes, int residueIdx, int nRes, double *masses, double *atVelBuffer, double *corr,int start, int nCorr) {
-//     int i,i2,j,k,l,m,n;
-//     double tmp;
-    
-//     for(i=0;i<nCorr;i++) {
-//         i2 = i*nRes+residueIdx;
-//         k = start % nCorr;
-//         l = (k + i) % nCorr;
-//         for(j=0;j<nAtomsRes;j++) {
-//             m=0+3*(j+nAtomsRes*k);
-//             n=0+3*(j+nAtomsRes*l);
-//             tmp =atVelBuffer[m]*atVelBuffer[n];
-//             m++; n++;
-//             tmp+=atVelBuffer[m]*atVelBuffer[n];
-//             m++; n++;
-//             tmp+=atVelBuffer[m]*atVelBuffer[n];
-//             corr[i2]+=masses[j]*tmp;
-//         }
-//     }
-//     return 0;
-// }
