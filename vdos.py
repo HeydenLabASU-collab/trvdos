@@ -334,6 +334,9 @@ class vdos:
         if averRotBondCount > 0:
             averRotBondInertia = self.residueList.rotBondInertia / averRotBondCount
             averLogRotBondInertia = self.residueList.logRotBondInertia / averRotBondCount
+        else:
+            averRotBondInertia = 0.0
+            averLogRotBondInertia = 0.0
         outFile = open(outputFileName,"w")
         outFile.write("#Average Mass (g/mol):\n%20.6e\n" % averMass)
         outFile.write("#Average Inertia (g/mol*A^2):\n%20.6e %20.6e %20.6e\n" % (averInertia[0],averInertia[1],averInertia[2]))
