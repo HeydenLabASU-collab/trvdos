@@ -371,8 +371,6 @@ for ts in tqdm(u.trajectory):
     u.trajectory.ts._pos = unwrap.unwrap.unwrap(u,trees)
     vdos.processStep(tStep,ts.time)
     tStep += 1
-    # if tStep >= 2:
-    #     break
 
 # %%
 vdos.postProcess()
