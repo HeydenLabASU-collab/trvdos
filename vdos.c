@@ -567,6 +567,7 @@ int processStep(int tStep,t_MDinfo *MDinfo,double *crds,double *vels,t_residueLi
     resVecsBufferShiftCurrent=(tStep%MDinfo->nCorr)*3;
     resNumBufferShiftCurrent=(tStep%MDinfo->nCorr);
 
+    #pragma omp parallel for
     for(i=0;i<3*MDinfo->nAtomsSel;i++) {
         MDinfo->atomCrd[i]=crds[i];
         MDinfo->atomVelCurrent[i]=vels[i];
