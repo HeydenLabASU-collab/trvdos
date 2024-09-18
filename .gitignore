@@ -16,3 +16,4 @@
 *.backup
 backup/*
 old/*
+legacy/
