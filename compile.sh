@@ -1,4 +1,4 @@
 #!/bin/bash
 
-gcc -fpic -c vdos.c
-gcc -shared vdos.o -o vdos.so
+gcc -O3 -fopenmp -fpic -lgsl -lgslcblas -c vdos.c
+gcc -shared -lgomp -lgsl -lgslcblas vdos.o -o vdos.so

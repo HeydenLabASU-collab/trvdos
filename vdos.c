@@ -1,19 +1,40 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_math.h>
+#include <gsl/gsl_eigen.h>
 
-typedef double vector[3];
+typedef double *vector;
 
-void vecCopy(double *a, vector *res) {
-    (*res)[0]=a[0];
-    (*res)[1]=a[1];
-    (*res)[2]=a[2];
+void vecCopy(vector a, vector res) {
+    res[0]=a[0];
+    res[1]=a[1];
+    res[2]=a[2];
 }
 
-void vecSub(vector a, vector b, vector *res) {
-    (*res)[0]=a[0]-b[0];
-    (*res)[1]=a[1]-b[1];
-    (*res)[2]=a[2]-b[2];
+void vecSub(vector a, vector b, vector res) {
+    res[0]=a[0]-b[0];
+    res[1]=a[1]-b[1];
+    res[2]=a[2]-b[2];
+}
+
+void vecSubInPlace(vector a, vector b) {
+    a[0]-=b[0];
+    a[1]-=b[1];
+    a[2]-=b[2];
+}
+
+void vecAdd(vector a, vector b, vector res) {
+    res[0]=a[0]+b[0];
+    res[1]=a[1]+b[1];
+    res[2]=a[2]+b[2];
+}
+
+void vecAddInPlace(vector a, vector b) {
+    a[0]+=b[0];
+    a[1]+=b[1];
+    a[2]+=b[2];
 }
 
 double vecDot(vector a, vector b) {
@@ -24,30 +45,44 @@ double vecNorm(vector a) {
     return sqrt(vecDot(a,a));
 }
 
-void vecNormalize(vector a, vector *res) {
+void vecNormalize(vector a, vector res) {
     double norm;
     norm=vecNorm(a);
-    (*res)[0]=a[0]/norm;
-    (*res)[1]=a[1]/norm;
-    (*res)[2]=a[2]/norm;
+    res[0]=a[0]/norm;
+    res[1]=a[1]/norm;
+    res[2]=a[2]/norm;
 }
 
-void vecScale(double s, vector a, vector *res) {
-    (*res)[0]=a[0]*s;
-    (*res)[1]=a[1]*s;
-    (*res)[2]=a[2]*s;
+void vecNormalizeInPlace(vector a) {
+    double norm;
+    norm=vecNorm(a);
+    a[0]/=norm;
+    a[1]/=norm;
+    a[2]/=norm;
 }
 
-void vecCross(vector a, vector b, vector *res) {
-    (*res)[0] = a[1] * b[2] - a[2] * b[1];
-    (*res)[1] = a[2] * b[0] - a[0] * b[2];
-    (*res)[2] = a[0] * b[1] - a[1] * b[0];
+void vecScale(double s, vector a, vector res) {
+    res[0]=a[0]*s;
+    res[1]=a[1]*s;
+    res[2]=a[2]*s;
 }
 
-void vecCenter(vector a, vector b, vector *res) {
-    (*res)[0] = (a[0] + b[0]) / 2.0;
-    (*res)[1] = (a[1] + b[1]) / 2.0;
-    (*res)[2] = (a[2] + b[2]) / 2.0;
+void vecScaleInPlace(double s, vector a) {
+    a[0]*=s;
+    a[1]*=s;
+    a[2]*=s;
+}
+
+void vecCross(vector a, vector b, vector res) {
+    res[0] = a[1] * b[2] - a[2] * b[1];
+    res[1] = a[2] * b[0] - a[0] * b[2];
+    res[2] = a[0] * b[1] - a[1] * b[0];
+}
+
+void vecCenter(vector a, vector b, vector res) {
+    res[0] = (a[0] + b[0]) / 2.0;
+    res[1] = (a[1] + b[1]) / 2.0;
+    res[2] = (a[2] + b[2]) / 2.0;
 }
 
 typedef struct {
@@ -56,91 +91,564 @@ typedef struct {
     int nSat0;
     int sat3AtomIndices[4];
     int nSat3;
-    double inertia;
-    double logInertia;
+    double sumInertia;
+    double sumLogInertia;
     double *wOmegaBuffer;
 } t_rotBond;
 
 typedef struct {
-    t_rotBond *rotBonds;
+    /* constant data */
+    int nAtoms;
+    double resMass;
     int nRotBonds;
-} t_rotBondSet;
+    double *atomMasses;
+    double *atomMassesX3;
+    t_rotBond *rotBonds;
+    /* transient data */
+    double *atomCrdMol;
+    double *atomVelMol;
+    double inertia[3];
+    double prevAxes[9];
+    double angMomLab[3];
+    double angMomMol[3];
+    double omegaMol[3];
+    double omegaLab[3];
+    double *COMposBuffer;
+    double *COMposCurrent;
+    double *COMposCorrRef;
+    double *COMvelBuffer;
+    double *COMvelCurrent;
+    double *COMvelCorrRef;
+    double *wOmegaBuffer;
+    double *wOmegaCurrent;
+    double *wOmegaCorrRef;
+    /* accumulating data */
+    double sumInertia[3];
+    double sumLogInertia[3];
+    double *totCorr;
+    double *trCorr;
+    double *rotCorr;
+    double *rotBondCorr;
+    int propCnt;
+    int corrCnt;
+    /* offset in MD info arrays */
+    int offset;
+} t_residue;
 
 typedef struct {
-    t_rotBondSet *rotBondSets;
-    int nRotBondSets;
-} t_rotBondSets;
+    t_residue *residues;
+    int nResidues;
+    double *totCorr;
+    double *trCorr;
+    double *rotCorr;
+    double *rotBondCorr;
+    double inertia[3];
+    double logInertia[3];
+    double rotBondInertia;
+    double logRotBondInertia;
+} t_residueList;
+
+typedef struct {
+    int frameSize;
+    double *atomCrd;
+    int bufferSize;
+    double *atomVelBuffer;
+    double *atomVelCurrent;
+    double *atomVelCorrRef;
+    int nCorr;
+    int nAtomsSel;
+} t_MDinfo;
 
 typedef struct {
     int *indices;
     long long rank;
 } t_dih;
 
-int inertiaTensorAngularMomentumLabFrame(int nAtomsInRes,double *masses, double *crd, double *vel, double *inertiaTensor, double *angMom) {
+int allocResidueList(t_residueList *residueList,int nRes,int nCorr) {
     int i;
 
-    if(nAtomsInRes==1) {
+    residueList->residues=(t_residue*)malloc(nRes*sizeof(t_residue));
+    residueList->nResidues=nRes;
+    residueList->totCorr=(double*)calloc(nCorr,sizeof(double));
+    residueList->trCorr=(double*)calloc(nCorr*3,sizeof(double));
+    residueList->rotCorr=(double*)calloc(nCorr*3,sizeof(double));
+    residueList->rotBondCorr=(double*)calloc(nCorr,sizeof(double));
+    for(i=0;i<3;i++) {
+        residueList->inertia[i]=0.0;
+        residueList->logInertia[i]=0.0;
+    }
+    residueList->rotBondInertia=0.0;
+    residueList->logRotBondInertia=0.0;
+    return 0;
+}
+
+int allocMDinfo(t_MDinfo *MDinfo, int nCorr, int nAtomsSel) {
+    int i;
+
+    MDinfo->frameSize=nAtomsSel*3;
+    MDinfo->atomCrd=(double*)malloc(MDinfo->frameSize*sizeof(double));
+    MDinfo->bufferSize=nCorr*MDinfo->frameSize;
+    MDinfo->atomVelBuffer=(double*)malloc(MDinfo->bufferSize*sizeof(double));
+    MDinfo->nCorr=nCorr;
+    MDinfo->nAtomsSel=nAtomsSel;
+    return 0;
+}
+
+int allocResidue(t_residue *res,int nAtoms,double *atomMasses,double resMass,int nAtomsSel,int nCorr) {
+    int i,j;
+    
+    res->nAtoms=nAtoms;
+    res->resMass=resMass;
+    res->atomMasses=(double*)malloc(nAtoms*sizeof(double));
+    res->atomMassesX3=(double*)malloc(nAtoms*3*sizeof(double));
+    res->atomCrdMol=(double*)malloc(nAtoms*3*sizeof(double));
+    res->atomVelMol=(double*)malloc(nAtoms*3*sizeof(double));
+    for(i=0;i<nAtoms;i++) {
+        res->atomMasses[i]=atomMasses[i];
+        for(j=0;j<3;j++) {
+            res->atomMassesX3[i*3+j]=atomMasses[i];
+        }
+    }
+    for(i=0;i<3;i++) {
+        res->sumInertia[i]=0.0;
+        res->sumLogInertia[i]=0.0;
+    }
+    res->totCorr=(double*)calloc(nCorr, sizeof(double));
+    res->COMposBuffer=(double*)calloc(nCorr*3, sizeof(double));
+    res->COMvelBuffer=(double*)calloc(nCorr*3, sizeof(double));
+    res->trCorr=(double*)calloc(nCorr*3, sizeof(double));
+    res->wOmegaBuffer=(double*)calloc(nCorr*3, sizeof(double));
+    res->rotCorr=(double*)calloc(nCorr*3, sizeof(double));
+    for(i=0;i<9;i++) {
+        res->prevAxes[i]=0.0;
+    }
+    res->prevAxes[0]=1.0;
+    res->prevAxes[4]=1.0;
+    res->prevAxes[8]=1.0;
+    res->rotBondCorr=(double*)calloc(nCorr, sizeof(double));
+    res->propCnt=0;
+    res->corrCnt=0;
+    return 0;
+}
+
+int setArrayIndexOffsets(t_residueList *residueList,t_MDinfo *MDinfo) {
+    int i;
+    int offset=0;
+
+    for(i=0;i<residueList->nResidues;i++) {
+        residueList->residues[i].offset=offset;
+        offset+=residueList->residues[i].nAtoms*3;
+    }
+    return 0;
+}
+
+int computeTotalVACF(t_residue *res,t_MDinfo *MDinfo) {
+    int i,j,k;
+    double *m,*v1,*v2;
+
+    m=res->atomMassesX3;
+    v1=MDinfo->atomVelCorrRef+res->offset;
+    for(i=0;i<MDinfo->nCorr;i++) {
+        k = ((v1+(i*MDinfo->frameSize))-MDinfo->atomVelBuffer) % MDinfo->bufferSize;
+        v2=MDinfo->atomVelBuffer+k;
+        for(j=0;j<res->nAtoms*3;j++) {
+            res->totCorr[i]+=m[j]*v1[j]*v2[j];
+        }
+    }
+}
+
+int computeCOM(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
+    int i;
+    double *m,*crd,*vel;
+
+    m=res->atomMasses;
+    res->COMposCurrent=res->COMposBuffer+bufferShift;
+    res->COMvelCurrent=res->COMvelBuffer+bufferShift;
+    crd=MDinfo->atomCrd+res->offset;
+    vel=MDinfo->atomVelCurrent+res->offset;
+    for(i=0;i<3;i++) {
+        res->COMposCurrent[i]=0.0;
+        res->COMvelCurrent[i]=0.0;
+    }
+    for(i=0;i<res->nAtoms;i++) {
+        res->COMposCurrent[0]+=m[i]*crd[i*3+0];
+        res->COMposCurrent[1]+=m[i]*crd[i*3+1];
+        res->COMposCurrent[2]+=m[i]*crd[i*3+2];
+        res->COMvelCurrent[0]+=m[i]*vel[i*3+0];
+        res->COMvelCurrent[1]+=m[i]*vel[i*3+1];
+        res->COMvelCurrent[2]+=m[i]*vel[i*3+2];
+    }
+    for(i=0;i<3;i++) {
+        res->COMposCurrent[i]/=res->resMass;
+        res->COMvelCurrent[i]/=res->resMass;
+    }
+    return 0;
+}
+
+int computeTransVACF(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
+    int i,j,k;
+    double mass;
+    double *v1,*v2;
+
+    mass=res->resMass;
+    v1=res->COMvelBuffer+bufferShift;
+    for(i=0;i<MDinfo->nCorr;i++) {
+        k = ((v1+(i*3))-res->COMvelBuffer) % (MDinfo->nCorr*3);
+        v2=res->COMvelBuffer+k;
+        for(j=0;j<3;j++) {
+            res->trCorr[i*3+j]+=mass*v1[j]*v2[j];
+        }
+    }
+}
+
+int subtractCOM(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
+    int i;
+    double *crdLab,*COMpos,*crd;
+    double *velLab,*COMvel,*vel;
+
+    COMpos=res->COMposCurrent;
+    COMvel=res->COMvelCurrent;
+    crdLab=MDinfo->atomCrd+res->offset;
+    velLab=MDinfo->atomVelCurrent+res->offset;
+    crd=res->atomCrdMol;
+    vel=res->atomVelMol;
+    for(i=0;i<res->nAtoms;i++) {
+        vecSub(crdLab,COMpos,crd);
+        vecSub(velLab,COMvel,vel);
+        crdLab+=3;
+        velLab+=3;
+        crd+=3;
+        vel+=3;
+    }
+    return 0;
+}
+
+int computeRotation(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
+    int i,j;
+    double *m,*crd,*vel;
+    double inertiaTensor[9];
+    double axes[9];
+    gsl_matrix *matrix;
+    gsl_matrix *eVec;
+    gsl_vector *eVal;
+    gsl_eigen_symmv_workspace *ws;
+
+    m=res->atomMasses;
+    res->wOmegaCurrent=res->wOmegaBuffer+bufferShift;
+    
+    for(i=0;i<9;i++) {
+        inertiaTensor[i]=0.0;
+    }
+    for(i=0;i<3;i++) {
+        res->angMomLab[i]=0.0;
+    }
+    if(res->nAtoms>1) {
+        crd=res->atomCrdMol;
+        vel=res->atomVelMol;
+        for(i=0;i<res->nAtoms;i++) {
+            inertiaTensor[0]+=m[i]*(crd[1]*crd[1]+crd[2]*crd[2]);
+            inertiaTensor[4]+=m[i]*(crd[0]*crd[0]+crd[2]*crd[2]);
+            inertiaTensor[8]+=m[i]*(crd[0]*crd[0]+crd[1]*crd[1]);
+            inertiaTensor[1]-=m[i]*crd[0]*crd[1];
+            inertiaTensor[2]-=m[i]*crd[0]*crd[2];
+            inertiaTensor[5]-=m[i]*crd[1]*crd[2];
+            res->angMomLab[0]+=m[i]*(crd[1]*vel[2]-crd[2]*vel[1]);
+            res->angMomLab[1]+=m[i]*(crd[2]*vel[0]-crd[0]*vel[2]);
+            res->angMomLab[2]+=m[i]*(crd[0]*vel[1]-crd[1]*vel[0]);
+            crd+=3;
+            vel+=3;
+        }
+        inertiaTensor[3]=inertiaTensor[1];
+        inertiaTensor[6]=inertiaTensor[2];
+        inertiaTensor[7]=inertiaTensor[5];
+
+        matrix=(gsl_matrix*)gsl_matrix_alloc(3,3);
+        for(i=0;i<3;i++) {
+            for(j=0;j<3;j++) {
+                gsl_matrix_set(matrix,i,j,inertiaTensor[i*3+j]);
+            }
+        }
+        eVal=(gsl_vector*)gsl_vector_alloc(3);
+        eVec=(gsl_matrix*)gsl_matrix_alloc(3,3);
+        /*allocating 'workspace'*/
+        ws=(gsl_eigen_symmv_workspace*)gsl_eigen_symmv_alloc(12);
+        /*compute eigenvalues and eigenvectors*/
+        gsl_eigen_symmv(matrix,eVal,eVec,ws);
+        /*sort eigenvalues and eigenvectors (largest eigenvalues first*/
+        gsl_eigen_symmv_sort(eVal,eVec,GSL_EIGEN_SORT_VAL_DESC);
+
+        for(i=0;i<3;i++) {
+            res->inertia[i]=gsl_vector_get(eVal,i);
+            res->sumInertia[i]+=res->inertia[i];
+            if(res->inertia[i]>0.0) {
+                res->sumLogInertia[i]+=log(res->inertia[i]);
+            }
+            for(j=0;j<3;j++) {
+                axes[i*3+j]=gsl_matrix_get(eVec,j,i);
+            }
+            if(vecDot(&axes[i*3],&res->prevAxes[i*3])<0.0) {
+                for(j=0;j<3;j++) {
+                    axes[i*3+j]*=-1.0;
+                }
+            }
+        }
         for(i=0;i<9;i++) {
-            inertiaTensor[i]=0.0;
+            res->prevAxes[i]=axes[i];
         }
         for(i=0;i<3;i++) {
-            angMom[i]=0.0;
+            res->angMomMol[i]=vecDot(&axes[i*3],res->angMomLab);
+            if(res->inertia[i]>0.0) {
+                res->omegaMol[i]=res->angMomMol[i]/res->inertia[i];
+                res->wOmegaCurrent[i]=res->angMomMol[i]/sqrt(res->inertia[i]);
+            } else {
+                res->omegaMol[i]=0.0;
+                res->wOmegaCurrent[i]=0.0;
+            }
         }
-    } else {
-        for(i=0;i<nAtomsInRes;i++) {
-            inertiaTensor[0]+=masses[i]*(crd[3*i+1]*crd[3*i+1]+crd[3*i+2]*crd[3*i+2]);
-            inertiaTensor[4]+=masses[i]*(crd[3*i+0]*crd[3*i+0]+crd[3*i+2]*crd[3*i+2]);
-            inertiaTensor[8]+=masses[i]*(crd[3*i+0]*crd[3*i+0]+crd[3*i+1]*crd[3*i+1]);
-            inertiaTensor[1]-=masses[i]*crd[3*i+0]*crd[3*i+1];
-            inertiaTensor[2]-=masses[i]*crd[3*i+0]*crd[3*i+2];
-            inertiaTensor[5]-=masses[i]*crd[3*i+1]*crd[3*i+2];
-            inertiaTensor[3]=inertiaTensor[1];
-            inertiaTensor[6]=inertiaTensor[2];
-            inertiaTensor[7]=inertiaTensor[5];
-            angMom[0]+=masses[i]*(crd[3*i+1]*vel[3*i+2]-crd[3*i+2]*vel[3*i+1]);
-            angMom[1]+=masses[i]*(crd[3*i+2]*vel[3*i+0]-crd[3*i+0]*vel[3*i+2]);
-            angMom[2]+=masses[i]*(crd[3*i+0]*vel[3*i+1]-crd[3*i+1]*vel[3*i+0]);
+        for(i=0;i<3;i++) {
+            for(j=0;j<3;j++) {
+                axes[i*3+j]=gsl_matrix_get(eVec,i,j);
+            }
+        }
+        for(i=0;i<3;i++) {
+            res->omegaLab[i]=vecDot(&axes[i*3],res->omegaMol);
+        }
+    }
+    gsl_eigen_symmv_free(ws);
+    gsl_vector_free(eVal);
+    gsl_matrix_free(eVec);
+    gsl_matrix_free(matrix);
+    return 0;
+}
+
+int computeRotVACF(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
+    int i,j,k;
+    double *v1,*v2;
+
+    v1=res->wOmegaBuffer+bufferShift;
+    for(i=0;i<MDinfo->nCorr;i++) {
+        k = ((v1+(i*3))-res->wOmegaBuffer) % (MDinfo->nCorr*3);
+        v2=res->wOmegaBuffer+k;
+        for(j=0;j<3;j++) {
+            res->rotCorr[i*3+j]+=v1[j]*v2[j];
+        }
+    }
+}
+
+int subtractRot(t_residue *res) {
+    int i;
+    double *crd,*vel;
+    double radVel[3];
+
+    crd=res->atomCrdMol;
+    vel=res->atomVelMol;
+    for(i=0;i<res->nAtoms;i++) {
+        vecCross(res->omegaLab, crd, radVel);
+        vecSubInPlace(vel, radVel);
+        crd+=3;
+        vel+=3;
+    }
+    return 0;
+}
+
+int computeRotBonds(int bufferShift,t_residue *res) {
+    int i,j;
+    double b0[3], b1[3], sat[3], satVel[3], center[3], axis[3], proj[3], perp[3], mom[3], angMom[3];
+    int nRotBonds=res->nRotBonds;
+    t_rotBond *rotBond;
+    double inertia1,inertia2;
+    double reducedInertia;
+    double angMom1,angMom2;
+    double *crd,*vel,*masses;
+    double *wOmegaCurrent;
+
+    crd=res->atomCrdMol;
+    vel=res->atomVelMol;
+    masses=res->atomMasses;
+     
+    for(i=0;i<nRotBonds;i++) {
+        inertia1=0.0;
+        inertia2=0.0;
+        angMom1=0.0;
+        angMom2=0.0;
+        rotBond=&res->rotBonds[i];
+        wOmegaCurrent=rotBond->wOmegaBuffer+bufferShift;
+
+        /*compute center of rotatable bond*/
+        vecCopy(&crd[rotBond->bondAtomIndices[0]*3],b0);
+        vecCopy(&crd[rotBond->bondAtomIndices[1]*3],b1);
+        vecCenter(b0,b1,center);
+
+        /*compute axis of rotation*/
+        vecSub(b1,b0,axis);
+        vecNormalizeInPlace(axis);
+
+        /*compute inertia*/
+        /*add inertia contributions from satellites with index 0 in dihedral*/
+        for(j=0;j<rotBond->nSat0;j++) {
+            vecCopy(&crd[rotBond->sat0AtomIndices[j]*3],sat);
+	        vecCopy(&vel[rotBond->sat0AtomIndices[j]*3],satVel);
+            /*coordinate of satellite relative to bond center*/
+            vecSubInPlace(sat,center);
+            /*project on rotational axis*/
+            vecScale(vecDot(sat,axis),axis,proj);
+            /*isolate perpendicular component*/
+            vecSub(sat,proj,perp);
+            /*moment of inertia*/
+            inertia1+=masses[rotBond->sat0AtomIndices[j]]*vecDot(perp,perp);
+            /*momentum*/
+            vecScale(masses[rotBond->sat0AtomIndices[j]],satVel,mom);
+            /*angular momentum with respect to axis*/
+            vecCross(perp,mom,angMom);
+            /*isolate angular momentum around axis*/
+            angMom1+=vecDot(angMom,axis);
+        }
+        /*add inertia contributions from satellites with index 3 in dihedral*/
+        for(j=0;j<rotBond->nSat3;j++) {
+            vecCopy(&crd[rotBond->sat3AtomIndices[j]*3],sat);
+	        vecCopy(&vel[rotBond->sat3AtomIndices[j]*3],satVel);
+            /*coordinate of satellite relative to bond center*/
+            vecSubInPlace(sat,center);
+            /*project on rotational axis*/
+            vecScale(vecDot(sat,axis),axis,proj);
+            /*isolate perpendicular component*/
+            vecSub(sat,proj,perp);
+            /*moment of inertia*/
+            inertia2+=masses[rotBond->sat3AtomIndices[j]]*vecDot(perp,perp);
+            /*momentum*/
+            vecScale(masses[rotBond->sat3AtomIndices[j]],satVel,mom);
+            /*angular momentum with respect to axis*/
+            vecCross(perp,mom,angMom);
+            /*isolate angular momentum around axis*/
+            angMom2+=vecDot(angMom,axis);
+        }
+        /*equivalent to reduced mass of vibrating bond in diatomic molecule*/
+        reducedInertia=inertia1*inertia2/(inertia1+inertia2);
+        /*accumulate reduced inertia for averaging*/
+        rotBond->sumInertia+=reducedInertia;
+        if(reducedInertia>0.0) {
+            rotBond->sumLogInertia+=log(reducedInertia);
+        }
+	/*1) convert angular momenta into angular velocities*/
+	/*2) compute difference (twist velocity of dihedral angle)*/
+	/*3) multiply with square root of "reduced" inertia for weighted rotational velocity*/
+        wOmegaCurrent[0]=sqrt(reducedInertia)*(angMom1/inertia1-angMom2/inertia2);
+    }
+    return 0;
+}
+
+int computeRotBondCorr(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
+    int i,k,m;
+    double *v1,*v2;
+
+    for(m=0;m<res->nRotBonds;m++) {
+        v1=res->rotBonds[m].wOmegaBuffer+bufferShift;
+        for(i=0;i<MDinfo->nCorr;i++) {
+            k = ((v1+i)-res->rotBonds[m].wOmegaBuffer) % MDinfo->nCorr;
+            v2=res->rotBonds[m].wOmegaBuffer+k;
+            res->rotBondCorr[i]+=v1[0]*v2[0];
         }
     }
     return 0;
 }
 
-int applyAxes(double *inertia, double *rotAxesTrans, double *angMomLab, double *angMomMol, double *wOmegaMol,int nAtomsInRes, double *pos, double *vel) {
-    int i,j;
-    vector omegaMol;
-    vector omegaLab;
-    vector tmp;
-    vector radVel;
+int processStep(int tStep,t_MDinfo *MDinfo,double *crds,double *vels,t_residueList *residueList,int nCorr) {
+    int i;
+    int atomVelBufferShift;
+    int resVecsBufferShiftCurrent;
+    int resVecsBufferShiftCorrRef;
+    int resNumBufferShiftCurrent;
+    int resNumBufferShiftCorrRef;
+
+    /* set MDinfo->atomVelCurrent for current time step */
+    atomVelBufferShift=(tStep%MDinfo->nCorr)*MDinfo->nAtomsSel*3;
+    MDinfo->atomVelCurrent=MDinfo->atomVelBuffer+atomVelBufferShift;
+    /* set buffer shift for computation of residue property vectors*/
+    resVecsBufferShiftCurrent=(tStep%MDinfo->nCorr)*3;
+    resNumBufferShiftCurrent=(tStep%MDinfo->nCorr);
+
+    #pragma omp parallel for
+    for(i=0;i<3*MDinfo->nAtomsSel;i++) {
+        MDinfo->atomCrd[i]=crds[i];
+        MDinfo->atomVelCurrent[i]=vels[i];
+    }
+
+    if(tStep>=nCorr-1) {
+        /* prep MDinfo->atomVelCorrRef for correlation functions*/
+        atomVelBufferShift=((tStep+1)%MDinfo->nCorr)*MDinfo->nAtomsSel*3;
+        MDinfo->atomVelCorrRef=MDinfo->atomVelBuffer+atomVelBufferShift;
+        /* set buffer shift for correlation function of residue property vectors*/
+        resVecsBufferShiftCorrRef=((tStep+1)%MDinfo->nCorr)*3;
+        resNumBufferShiftCorrRef=((tStep+1)%MDinfo->nCorr);
+    }
     
-    /*rotate angular momentum from lab frame into molecular frame*/
-    for(i=0;i<3;i++) {
-        angMomMol[i]=0.0;
-        for(j=0;j<3;j++) {
-            angMomMol[i]+=rotAxesTrans[j*3+i]*angMomLab[j];
+    #pragma omp parallel for
+    for(i=0;i<residueList->nResidues;i++) {
+        computeCOM(resVecsBufferShiftCurrent,&residueList->residues[i],MDinfo);
+        subtractCOM(resVecsBufferShiftCurrent,&residueList->residues[i],MDinfo);
+        computeRotation(resVecsBufferShiftCurrent,&residueList->residues[i],MDinfo);
+        subtractRot(&residueList->residues[i]);
+        computeRotBonds(resNumBufferShiftCurrent,&residueList->residues[i]);
+        residueList->residues[i].propCnt++;
+        if(tStep>=nCorr-1) {
+            computeTotalVACF(&residueList->residues[i],MDinfo);
+            computeTransVACF(resVecsBufferShiftCorrRef,&residueList->residues[i],MDinfo);
+            computeRotVACF(resVecsBufferShiftCorrRef,&residueList->residues[i],MDinfo);
+            computeRotBondCorr(resNumBufferShiftCorrRef,&residueList->residues[i],MDinfo);
+            residueList->residues[i].corrCnt++;
         }
     }
-    /*convert angular momentum into weighted rotational velocity*/
-    for(i=0;i<3;i++) {
-        wOmegaMol[i]=angMomMol[i]/sqrt(inertia[i]);
-    }
-    /*convert angular momentum into rotational velocity*/
-    for(i=0;i<3;i++) {
-        omegaMol[i]=angMomMol[i]/inertia[i];
-    }
-    /*rotate rotational velocity into lab frame*/
-    for(i=0;i<3;i++) {
-        omegaLab[i]=0.0;
-        for(j=0;j<3;j++) {
-            omegaLab[i]+=rotAxesTrans[i*3+j]*omegaMol[j];
+    return 0;
+}
+
+int postProcess(t_residueList *residueList,int nCorr) {
+    int i,j,k;
+    int normFactor;
+
+    for(i=0;i<residueList->nResidues;i++) {
+        normFactor=residueList->residues[i].corrCnt;
+        for(j=0;j<nCorr;j++) {
+            residueList->residues[i].totCorr[j]/=normFactor;
+            residueList->totCorr[j]+=residueList->residues[i].totCorr[j];
+            for(k=0;k<3;k++) {
+                residueList->residues[i].trCorr[j*3+k]/=normFactor;
+                residueList->residues[i].rotCorr[j*3+k]/=normFactor;
+                residueList->trCorr[j*3+k]+=residueList->residues[i].trCorr[j*3+k];
+                residueList->rotCorr[j*3+k]+=residueList->residues[i].rotCorr[j*3+k];
+            }
+            residueList->residues[i].rotBondCorr[j]/=normFactor;
+            residueList->rotBondCorr[j]+=residueList->residues[i].rotBondCorr[j];
+        }
+        normFactor=residueList->residues[i].propCnt;
+        for(k=0;k<3;k++) {
+            residueList->residues[i].sumInertia[k]/=normFactor;
+            residueList->residues[i].sumLogInertia[k]/=normFactor;
+            residueList->inertia[k]+=residueList->residues[i].sumInertia[k];
+            residueList->logInertia[k]+=residueList->residues[i].sumLogInertia[k];
+        }
+        for(k=0;k<residueList->residues[i].nRotBonds;k++) {
+            residueList->residues[i].rotBonds[k].sumInertia/=normFactor;
+            residueList->residues[i].rotBonds[k].sumLogInertia/=normFactor;
+            residueList->rotBondInertia+=residueList->residues[i].rotBonds[k].sumInertia;
+            residueList->logRotBondInertia+=residueList->residues[i].rotBonds[k].sumLogInertia;
         }
     }
-    for(i=0;i<nAtomsInRes;i++) {
-        vecCopy(&pos[i*3],&tmp);
-        vecCross(omegaLab,tmp,&radVel);
-        for(j=0;j<3;j++) {
-            vel[i*3+j]-=radVel[j];
+
+    normFactor=residueList->nResidues;
+    for(j=0;j<nCorr;j++) {
+        residueList->totCorr[j]/=normFactor;
+        for(k=0;k<3;k++) {
+            residueList->trCorr[j*3+k]/=normFactor;
+            residueList->rotCorr[j*3+k]/=normFactor;
         }
+        residueList->rotBondCorr[j]/=normFactor;
     }
+    for(k=0;k<3;k++) {
+        residueList->inertia[k]/=normFactor;
+        residueList->logInertia[k]/=normFactor;
+    }
+    residueList->rotBondInertia/=normFactor;
+    residueList->logRotBondInertia/=normFactor;
     return 0;
 }
 
@@ -173,7 +681,7 @@ int dih_cmp(const void *a, const void *b)
         and positive if a > b */
 }
 
-int getRotBonds(t_rotBondSets *sets,int nSets,int *dihedAtomIndices,int nDih,int *resAtomIdxRange, int nCorr) {
+int getRotBonds(t_residueList *sets,int nSets,int *dihedAtomIndices,int nDih,int *resAtomIdxRange, int nCorr) {
     int i,j,k,l;
     int dih[4];
     int *tmp;
@@ -222,9 +730,6 @@ int getRotBonds(t_rotBondSets *sets,int nSets,int *dihedAtomIndices,int nDih,int
             dihList[i].rank+=((long long)(dihList[i].indices[3]-min+1));
         }
         qsort(dihList,nDih,sizeof(t_dih),dih_cmp);
-        
-        sets->rotBondSets=(t_rotBondSet*)malloc(nSets*sizeof(t_rotBondSet));
-        sets->nRotBondSets=nSets;
         tmp=(int*)malloc(nDih*sizeof(int));
 
         /*counting unique rotatable bonds: easy for sorted dihedrals*/
@@ -381,154 +886,28 @@ int getRotBonds(t_rotBondSets *sets,int nSets,int *dihedAtomIndices,int nDih,int
                 }
             }
             /*allocate memory for rotatable bonds of residue i in sets->rotBondSets[i]*/
-            sets->rotBondSets[i].nRotBonds=cnt;
-            sets->rotBondSets[i].rotBonds=(t_rotBond*)malloc(cnt*sizeof(t_rotBond));
+            sets->residues[i].nRotBonds=cnt;
+            sets->residues[i].rotBonds=(t_rotBond*)malloc(cnt*sizeof(t_rotBond));
             /*copy rotatable bonds into for residue 'i' into sets->rotBondSets[i].rotBonds */
             for(j=0;j<cnt;j++) {
                 l=tmp[j];
                 for(k=0;k<2;k++) {
-                    sets->rotBondSets[i].rotBonds[j].bondAtomIndices[k]=rotBonds[l].bondAtomIndices[k]-min;
+                    sets->residues[i].rotBonds[j].bondAtomIndices[k]=rotBonds[l].bondAtomIndices[k]-min;
                 }
                 for(k=0;k<rotBonds[l].nSat0;k++) {
-                    sets->rotBondSets[i].rotBonds[j].sat0AtomIndices[k]=rotBonds[l].sat0AtomIndices[k]-min;
+                    sets->residues[i].rotBonds[j].sat0AtomIndices[k]=rotBonds[l].sat0AtomIndices[k]-min;
                 }
-                sets->rotBondSets[i].rotBonds[j].nSat0=rotBonds[tmp[j]].nSat0;
+                sets->residues[i].rotBonds[j].nSat0=rotBonds[tmp[j]].nSat0;
                 for(k=0;k<rotBonds[l].nSat3;k++) {
-                    sets->rotBondSets[i].rotBonds[j].sat3AtomIndices[k]=rotBonds[l].sat3AtomIndices[k]-min;
+                    sets->residues[i].rotBonds[j].sat3AtomIndices[k]=rotBonds[l].sat3AtomIndices[k]-min;
                 }
-                sets->rotBondSets[i].rotBonds[j].nSat3=rotBonds[tmp[j]].nSat3;
-                sets->rotBondSets[i].rotBonds[j].inertia=0.0;
-                sets->rotBondSets[i].rotBonds[j].logInertia=0.0;
-                sets->rotBondSets[i].rotBonds[j].wOmegaBuffer=(double*)malloc(nCorr*sizeof(double));
+                sets->residues[i].rotBonds[j].nSat3=rotBonds[tmp[j]].nSat3;
+                sets->residues[i].rotBonds[j].sumInertia=0.0;
+                sets->residues[i].rotBonds[j].sumLogInertia=0.0;
+                sets->residues[i].rotBonds[j].wOmegaBuffer=(double*)malloc(nCorr*sizeof(double));
             }
         }
         // fclose(debug);
-    } else {
-        sets->nRotBondSets=0;
-        sets->rotBondSets=NULL;
-    }
-    return 0;
-}
-
-int analyzeRotBondsInResidue(t_rotBondSet *set,double *masses, double *pos, double *vel, int tStep, int nCorr) {
-    int i,j,k,l;
-    int idx;
-    vector b0, b1, sat, satVel, center, axis, proj, perp, mom, angMom;
-    int nRotBonds=set->nRotBonds;
-    t_rotBond *rotBond;
-    double inertia1,inertia2;
-    double reducedInertia;
-    double angMom1,angMom2;
- 
-    idx = tStep % nCorr;
-
-    for(i=0;i<nRotBonds;i++) {
-        inertia1=0.0;
-        inertia2=0.0;
-        angMom1=0.0;
-        angMom2=0.0;
-        rotBond=&set->rotBonds[i];
-
-        /*compute center of rotatable bond*/
-        vecCopy(&pos[rotBond->bondAtomIndices[0]*3],&b0);
-        vecCopy(&pos[rotBond->bondAtomIndices[1]*3],&b1);
-        vecCenter(b0,b1,&center);
-
-        /*compute axis of rotation*/
-        vecSub(b1,b0,&axis);
-        vecNormalize(axis,&axis);
-
-        /*compute inertia*/
-        /*add inertia contributions from satellites with index 0 in dihedral*/
-        for(j=0;j<rotBond->nSat0;j++) {
-            vecCopy(&pos[rotBond->sat0AtomIndices[j]*3],&sat);
-	        vecCopy(&vel[rotBond->sat0AtomIndices[j]*3],&satVel);
-            /*coordinate of satellite relative to bond center*/
-            vecSub(sat,center,&sat);
-            /*project on rotational axis*/
-            vecScale(vecDot(sat,axis),axis,&proj);
-            /*isolate perpendicular component*/
-            vecSub(sat,proj,&perp);
-            /*moment of inertia*/
-            inertia1+=masses[rotBond->sat0AtomIndices[j]]*vecDot(perp,perp);
-            /*momentum*/
-            vecScale(masses[rotBond->sat0AtomIndices[j]],satVel,&mom);
-            /*angular momentum with respect to axis*/
-            vecCross(perp,mom,&angMom);
-            /*isolate angular momentum around axis*/
-            angMom1+=vecDot(angMom,axis);
-        }
-        /*add inertia contributions from satellites with index 3 in dihedral*/
-        for(j=0;j<rotBond->nSat3;j++) {
-            vecCopy(&pos[rotBond->sat3AtomIndices[j]*3],&sat);
-	        vecCopy(&vel[rotBond->sat3AtomIndices[j]*3],&satVel);
-            /*coordinate of satellite relative to bond center*/
-            vecSub(sat,center,&sat);
-            /*project on rotational axis*/
-            vecScale(vecDot(sat,axis),axis,&proj);
-            /*isolate perpendicular component*/
-            vecSub(sat,proj,&perp);
-            /*moment of inertia*/
-            inertia2+=masses[rotBond->sat3AtomIndices[j]]*vecDot(perp,perp);
-            /*momentum*/
-            vecScale(masses[rotBond->sat3AtomIndices[j]],satVel,&mom);
-            /*angular momentum with respect to axis*/
-            vecCross(perp,mom,&angMom);
-            /*isolate angular momentum around axis*/
-            angMom2+=vecDot(angMom,axis);
-        }
-        /*equivalent to reduced mass of vibrating bond in diatomic molecule*/
-        reducedInertia=inertia1*inertia2/(inertia1+inertia2);
-        /*accumulate reduced inertia for averaging*/
-        rotBond->inertia+=reducedInertia;
-        rotBond->logInertia+=log(reducedInertia);
-	/*1) convert angular momenta into angular velocities*/
-	/*2) compute difference (twist velocity of dihedral angle)*/
-	/*3) multiply with square root of "reduced" inertia for weighted rotational velocity*/
-        rotBond->wOmegaBuffer[idx]=sqrt(reducedInertia)*(angMom1/inertia1-angMom2/inertia2);
-    }
-    return 0;
-}
-
-int corrRotBonds(t_rotBondSets *sets, double *corr,int start, int nCorr) {
-    int i,j,k,l,m;
-    int nSets;
-    t_rotBondSet *set;
-    t_rotBond *rotBond;
-
-    nSets=sets->nRotBondSets;
-    for(i=0;i<nSets;i++) {
-        set=&sets->rotBondSets[i];
-        for(j=0;j<nCorr;j++) {
-            k = start % nCorr;
-            l = (k + j) % nCorr;
-            for(m=0;m<set->nRotBonds;m++) {
-                rotBond=&set->rotBonds[m];
-                corr[j*nSets+i]+=rotBond->wOmegaBuffer[k]*rotBond->wOmegaBuffer[l];
-            }
-        }
-    }
-    return 0;
-}
-
-int corrAtomsRes(int nAtomsRes, int residueIdx, int nRes, double *masses, double *atVelBuffer, double *corr,int start, int nCorr) {
-    int i,i2,j,k,l,m,n;
-    double tmp;
-    
-    for(i=0;i<nCorr;i++) {
-        i2 = i*nRes+residueIdx;
-        k = start % nCorr;
-        l = (k + i) % nCorr;
-        for(j=0;j<nAtomsRes;j++) {
-            m=0+3*(j+nAtomsRes*k);
-            n=0+3*(j+nAtomsRes*l);
-            tmp =atVelBuffer[m]*atVelBuffer[n];
-            m++; n++;
-            tmp+=atVelBuffer[m]*atVelBuffer[n];
-            m++; n++;
-            tmp+=atVelBuffer[m]*atVelBuffer[n];
-            corr[i2]+=masses[j]*tmp;
-        }
     }
     return 0;
 }
