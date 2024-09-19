@@ -1,7 +1,7 @@
 # %%
 import ctypes as ct
 import MDAnalysis as mda
-import MDA_unwrap_PBC as unwrap
+import MDA_unwrap_PBC as pbc
 from scipy.fft import fft, ifft, dct, idct
 import numpy as np
 import matplotlib.pyplot as plt
@@ -364,7 +364,7 @@ class vdos:
 TOPOL = "/Users/matthiasheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE.tpr"
 TRAJ = "/Users/matthiasheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE_test.trr"
 u = mda.Universe(TOPOL,TRAJ)
-trees = unwrap.unwrap.buildTrees(u)
+trees = pbc.unwrap.buildTrees(u)
 sel = u.select_atoms("resname POPC")
 vdos = vdos(sel,200)
 
@@ -372,7 +372,7 @@ vdos = vdos(sel,200)
 clib.omp_set_num_threads(4)
 tStep = 0
 for ts in tqdm(u.trajectory):
-    u.trajectory.ts._pos = unwrap.unwrap.unwrap(u,trees)
+    pbc.unwrap.run(u,trees)
     vdos.processStep(tStep,ts.time)
     tStep += 1
 
