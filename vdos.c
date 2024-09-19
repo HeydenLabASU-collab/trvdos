@@ -5,7 +5,7 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_eigen.h>
 
-typedef double *vector;
+typedef float *vector;
 
 void vecCopy(vector a, vector res) {
     res[0]=a[0];
@@ -37,16 +37,16 @@ void vecAddInPlace(vector a, vector b) {
     a[2]+=b[2];
 }
 
-double vecDot(vector a, vector b) {
+float vecDot(vector a, vector b) {
     return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 }
 
-double vecNorm(vector a) {
+float vecNorm(vector a) {
     return sqrt(vecDot(a,a));
 }
 
 void vecNormalize(vector a, vector res) {
-    double norm;
+    float norm;
     norm=vecNorm(a);
     res[0]=a[0]/norm;
     res[1]=a[1]/norm;
@@ -54,20 +54,20 @@ void vecNormalize(vector a, vector res) {
 }
 
 void vecNormalizeInPlace(vector a) {
-    double norm;
+    float norm;
     norm=vecNorm(a);
     a[0]/=norm;
     a[1]/=norm;
     a[2]/=norm;
 }
 
-void vecScale(double s, vector a, vector res) {
+void vecScale(float s, vector a, vector res) {
     res[0]=a[0]*s;
     res[1]=a[1]*s;
     res[2]=a[2]*s;
 }
 
-void vecScaleInPlace(double s, vector a) {
+void vecScaleInPlace(float s, vector a) {
     a[0]*=s;
     a[1]*=s;
     a[2]*=s;
@@ -93,35 +93,35 @@ typedef struct {
     int nSat3;
     double sumInertia;
     double sumLogInertia;
-    double *wOmegaBuffer;
+    float *wOmegaBuffer;
 } t_rotBond;
 
 typedef struct {
     /* constant data */
     int nAtoms;
-    double resMass;
+    float resMass;
     int nRotBonds;
-    double *atomMasses;
-    double *atomMassesX3;
+    float *atomMasses;
+    float *atomMassesX3;
     t_rotBond *rotBonds;
     /* transient data */
-    double *atomCrdMol;
-    double *atomVelMol;
-    double inertia[3];
-    double prevAxes[9];
-    double angMomLab[3];
-    double angMomMol[3];
-    double omegaMol[3];
-    double omegaLab[3];
-    double *COMposBuffer;
-    double *COMposCurrent;
-    double *COMposCorrRef;
-    double *COMvelBuffer;
-    double *COMvelCurrent;
-    double *COMvelCorrRef;
-    double *wOmegaBuffer;
-    double *wOmegaCurrent;
-    double *wOmegaCorrRef;
+    float *atomCrdMol;
+    float *atomVelMol;
+    float inertia[3];
+    float prevAxes[9];
+    float angMomLab[3];
+    float angMomMol[3];
+    float omegaMol[3];
+    float omegaLab[3];
+    float *COMposBuffer;
+    float *COMposCurrent;
+    float *COMposCorrRef;
+    float *COMvelBuffer;
+    float *COMvelCurrent;
+    float *COMvelCorrRef;
+    float *wOmegaBuffer;
+    float *wOmegaCurrent;
+    float *wOmegaCorrRef;
     /* accumulating data */
     double sumInertia[3];
     double sumLogInertia[3];
@@ -150,11 +150,11 @@ typedef struct {
 
 typedef struct {
     int frameSize;
-    double *atomCrd;
+    float *atomCrd;
     int bufferSize;
-    double *atomVelBuffer;
-    double *atomVelCurrent;
-    double *atomVelCorrRef;
+    float *atomVelBuffer;
+    float *atomVelCurrent;
+    float *atomVelCorrRef;
     int nCorr;
     int nAtomsSel;
 } t_MDinfo;
@@ -186,23 +186,23 @@ int allocMDinfo(t_MDinfo *MDinfo, int nCorr, int nAtomsSel) {
     int i;
 
     MDinfo->frameSize=nAtomsSel*3;
-    MDinfo->atomCrd=(double*)malloc(MDinfo->frameSize*sizeof(double));
+    MDinfo->atomCrd=(float*)malloc(MDinfo->frameSize*sizeof(float));
     MDinfo->bufferSize=nCorr*MDinfo->frameSize;
-    MDinfo->atomVelBuffer=(double*)malloc(MDinfo->bufferSize*sizeof(double));
+    MDinfo->atomVelBuffer=(float*)malloc(MDinfo->bufferSize*sizeof(float));
     MDinfo->nCorr=nCorr;
     MDinfo->nAtomsSel=nAtomsSel;
     return 0;
 }
 
-int allocResidue(t_residue *res,int nAtoms,double *atomMasses,double resMass,int nAtomsSel,int nCorr) {
+int allocResidue(t_residue *res,int nAtoms,float *atomMasses,float resMass,int nAtomsSel,int nCorr) {
     int i,j;
     
     res->nAtoms=nAtoms;
     res->resMass=resMass;
-    res->atomMasses=(double*)malloc(nAtoms*sizeof(double));
-    res->atomMassesX3=(double*)malloc(nAtoms*3*sizeof(double));
-    res->atomCrdMol=(double*)malloc(nAtoms*3*sizeof(double));
-    res->atomVelMol=(double*)malloc(nAtoms*3*sizeof(double));
+    res->atomMasses=(float*)malloc(nAtoms*sizeof(float));
+    res->atomMassesX3=(float*)malloc(nAtoms*3*sizeof(float));
+    res->atomCrdMol=(float*)malloc(nAtoms*3*sizeof(float));
+    res->atomVelMol=(float*)malloc(nAtoms*3*sizeof(float));
     for(i=0;i<nAtoms;i++) {
         res->atomMasses[i]=atomMasses[i];
         for(j=0;j<3;j++) {
@@ -214,10 +214,10 @@ int allocResidue(t_residue *res,int nAtoms,double *atomMasses,double resMass,int
         res->sumLogInertia[i]=0.0;
     }
     res->totCorr=(double*)calloc(nCorr, sizeof(double));
-    res->COMposBuffer=(double*)calloc(nCorr*3, sizeof(double));
-    res->COMvelBuffer=(double*)calloc(nCorr*3, sizeof(double));
+    res->COMposBuffer=(float*)calloc(nCorr*3, sizeof(float));
+    res->COMvelBuffer=(float*)calloc(nCorr*3, sizeof(float));
     res->trCorr=(double*)calloc(nCorr*3, sizeof(double));
-    res->wOmegaBuffer=(double*)calloc(nCorr*3, sizeof(double));
+    res->wOmegaBuffer=(float*)calloc(nCorr*3, sizeof(float));
     res->rotCorr=(double*)calloc(nCorr*3, sizeof(double));
     for(i=0;i<9;i++) {
         res->prevAxes[i]=0.0;
@@ -244,7 +244,7 @@ int setArrayIndexOffsets(t_residueList *residueList,t_MDinfo *MDinfo) {
 
 int computeTotalVACF(t_residue *res,t_MDinfo *MDinfo) {
     int i,j,k;
-    double *m,*v1,*v2;
+    float *m,*v1,*v2;
 
     m=res->atomMassesX3;
     v1=MDinfo->atomVelCorrRef+res->offset;
@@ -259,7 +259,7 @@ int computeTotalVACF(t_residue *res,t_MDinfo *MDinfo) {
 
 int computeCOM(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
     int i;
-    double *m,*crd,*vel;
+    float *m,*crd,*vel;
 
     m=res->atomMasses;
     res->COMposCurrent=res->COMposBuffer+bufferShift;
@@ -287,8 +287,8 @@ int computeCOM(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
 
 int computeTransVACF(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
     int i,j,k;
-    double mass;
-    double *v1,*v2;
+    float mass;
+    float *v1,*v2;
 
     mass=res->resMass;
     v1=res->COMvelBuffer+bufferShift;
@@ -303,8 +303,9 @@ int computeTransVACF(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
 
 int subtractCOM(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
     int i;
-    double *crdLab,*COMpos,*crd;
-    double *velLab,*COMvel,*vel;
+    float *crdLab,*crd;
+    float *velLab,*vel;
+    float *COMpos,*COMvel;
 
     COMpos=res->COMposCurrent;
     COMvel=res->COMvelCurrent;
@@ -325,9 +326,9 @@ int subtractCOM(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
 
 int computeRotation(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
     int i,j;
-    double *m,*crd,*vel;
-    double inertiaTensor[9];
-    double axes[9];
+    float *m,*crd,*vel;
+    float inertiaTensor[9];
+    float axes[9];
     gsl_matrix *matrix;
     gsl_matrix *eVec;
     gsl_vector *eVal;
@@ -423,7 +424,7 @@ int computeRotation(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
 
 int computeRotVACF(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
     int i,j,k;
-    double *v1,*v2;
+    float *v1,*v2;
 
     v1=res->wOmegaBuffer+bufferShift;
     for(i=0;i<MDinfo->nCorr;i++) {
@@ -437,8 +438,8 @@ int computeRotVACF(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
 
 int subtractRot(t_residue *res) {
     int i;
-    double *crd,*vel;
-    double radVel[3];
+    float *crd,*vel;
+    float radVel[3];
 
     crd=res->atomCrdMol;
     vel=res->atomVelMol;
@@ -453,14 +454,14 @@ int subtractRot(t_residue *res) {
 
 int computeRotBonds(int bufferShift,t_residue *res) {
     int i,j;
-    double b0[3], b1[3], sat[3], satVel[3], center[3], axis[3], proj[3], perp[3], mom[3], angMom[3];
+    float b0[3], b1[3], sat[3], satVel[3], center[3], axis[3], proj[3], perp[3], mom[3], angMom[3];
     int nRotBonds=res->nRotBonds;
     t_rotBond *rotBond;
-    double inertia1,inertia2;
-    double reducedInertia;
-    double angMom1,angMom2;
-    double *crd,*vel,*masses;
-    double *wOmegaCurrent;
+    float inertia1,inertia2;
+    float reducedInertia;
+    float angMom1,angMom2;
+    float *crd,*vel,*masses;
+    float *wOmegaCurrent;
 
     crd=res->atomCrdMol;
     vel=res->atomVelMol;
@@ -539,7 +540,7 @@ int computeRotBonds(int bufferShift,t_residue *res) {
 
 int computeRotBondCorr(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
     int i,k,m;
-    double *v1,*v2;
+    float *v1,*v2;
 
     for(m=0;m<res->nRotBonds;m++) {
         v1=res->rotBonds[m].wOmegaBuffer+bufferShift;
@@ -552,7 +553,7 @@ int computeRotBondCorr(int bufferShift,t_residue *res,t_MDinfo *MDinfo) {
     return 0;
 }
 
-int processStep(int tStep,t_MDinfo *MDinfo,double *crds,double *vels,t_residueList *residueList,int nCorr) {
+int processStep(int tStep,t_MDinfo *MDinfo,float *crds,float *vels,t_residueList *residueList,int nCorr) {
     int i;
     int atomVelBufferShift;
     int resVecsBufferShiftCurrent;
@@ -904,7 +905,7 @@ int getRotBonds(t_residueList *sets,int nSets,int *dihedAtomIndices,int nDih,int
                 sets->residues[i].rotBonds[j].nSat3=rotBonds[tmp[j]].nSat3;
                 sets->residues[i].rotBonds[j].sumInertia=0.0;
                 sets->residues[i].rotBonds[j].sumLogInertia=0.0;
-                sets->residues[i].rotBonds[j].wOmegaBuffer=(double*)malloc(nCorr*sizeof(double));
+                sets->residues[i].rotBonds[j].wOmegaBuffer=(float*)malloc(nCorr*sizeof(float));
             }
         }
         // fclose(debug);

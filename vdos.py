@@ -18,36 +18,36 @@ class t_rotBond(ct.Structure):
                 ("nSat3", ct.c_int32),
                 ("sumInertia", ct.c_double),
                 ("sumLogInertia", ct.c_double),
-                ("wOmegaBuffer", ct.POINTER(ct.c_double))
+                ("wOmegaBuffer", ct.POINTER(ct.c_float))
                 )
 
 class t_residue(ct.Structure):
     '''datatype with data and pointers for residue/molecule)'''
     _fields_ = (# constant data
                 ("nAtoms", ct.c_int32),
-                ("resMass", ct.c_double),
+                ("resMass", ct.c_float),
                 ("nRotBonds", ct.c_int32),
-                ("atomMasses", ct.POINTER(ct.c_double)),
-                ("atomMassesX3", ct.POINTER(ct.c_double)),
+                ("atomMasses", ct.POINTER(ct.c_float)),
+                ("atomMassesX3", ct.POINTER(ct.c_float)),
                 ("rotBonds", ct.POINTER(t_rotBond)),
                 # transient data
-                ("atomCrdMol", ct.POINTER(ct.c_double)),
-                ("atomVelMol", ct.POINTER(ct.c_double)),
-                ("inertia", ct.c_double*3),
-                ("prevAxes", ct.c_double*9),
-                ("angMomLab", ct.c_double*3),
-                ("angMomMol", ct.c_double*3),
-                ("omegaMol", ct.c_double*3),
-                ("omegaLab", ct.c_double*3),
-                ("COMposBuffer", ct.POINTER(ct.c_double)),
-                ("COMposCurrent", ct.POINTER(ct.c_double)),
-                ("COMposCorrRef", ct.POINTER(ct.c_double)),
-                ("COMvelBuffer", ct.POINTER(ct.c_double)),
-                ("COMvelCurrent", ct.POINTER(ct.c_double)),
-                ("COMvelCorrRef", ct.POINTER(ct.c_double)),
-                ("wOmegaBuffer", ct.POINTER(ct.c_double)),
-                ("wOmegaCurrent", ct.POINTER(ct.c_double)),
-                ("wOmegaCorrRef", ct.POINTER(ct.c_double)),
+                ("atomCrdMol", ct.POINTER(ct.c_float)),
+                ("atomVelMol", ct.POINTER(ct.c_float)),
+                ("inertia", ct.c_float*3),
+                ("prevAxes", ct.c_float*9),
+                ("angMomLab", ct.c_float*3),
+                ("angMomMol", ct.c_float*3),
+                ("omegaMol", ct.c_float*3),
+                ("omegaLab", ct.c_float*3),
+                ("COMposBuffer", ct.POINTER(ct.c_float)),
+                ("COMposCurrent", ct.POINTER(ct.c_float)),
+                ("COMposCorrRef", ct.POINTER(ct.c_float)),
+                ("COMvelBuffer", ct.POINTER(ct.c_float)),
+                ("COMvelCurrent", ct.POINTER(ct.c_float)),
+                ("COMvelCorrRef", ct.POINTER(ct.c_float)),
+                ("wOmegaBuffer", ct.POINTER(ct.c_float)),
+                ("wOmegaCurrent", ct.POINTER(ct.c_float)),
+                ("wOmegaCorrRef", ct.POINTER(ct.c_float)),
                 # accumulating data
                 ("sumInertia", ct.c_double*3),
                 ("sumLogInertia", ct.c_double*3),
@@ -77,18 +77,18 @@ class t_residueList(ct.Structure):
     
 class t_MDinfo(ct.Structure):
     '''datatype with data and pointers for MD simulation'''
-    _fields_ = (# number of doubles in per frame in array
+    _fields_ = (# number of floats in per frame in array
                 ("frameSize", ct.c_int32),
                 # single set of atomic coordinates for selection
-                ("atomCrd", ct.POINTER(ct.c_double)),
-                # number of doubles in atomVelBuffer
+                ("atomCrd", ct.POINTER(ct.c_float)),
+                # number of floats in atomVelBuffer
                 ("bufferSize", ct.c_int32),
                 # nCorr sets of atomic velocities for selection
-                ("atomVelBuffer", ct.POINTER(ct.c_double)),
+                ("atomVelBuffer", ct.POINTER(ct.c_float)),
                 # pointer to current set of atomic velocities in buffer
-                ("atomVelCurrent", ct.POINTER(ct.c_double)),
+                ("atomVelCurrent", ct.POINTER(ct.c_float)),
                 # pointer to first set of atomic velocities in current buffer
-                ("atomVelCorrRef", ct.POINTER(ct.c_double)),
+                ("atomVelCorrRef", ct.POINTER(ct.c_float)),
                 # nCorr sets of atomic velocities for selection
                 ("nCorr", ct.c_int32),
                 # number of atoms in selection
@@ -129,9 +129,9 @@ clib.allocResidue.argtypes = [
     # number of atoms in residue
     ct.c_int32,
     # # list of atomic masses for residue
-    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),
+    np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags='C_CONTIGUOUS'),
     # residue mass
-    ct.c_double,
+    ct.c_float,
     # number of atoms in selection
     # (needed for offsets in atomic velocity buffer)
     ct.c_int32,
@@ -173,9 +173,9 @@ clib.processStep.argtypes = [
     #structure to store MD atomic corrdinates and buffer of velocities
     ct.POINTER(t_MDinfo),
     #atomic coordinates for selection
-    np.ctypeslib.ndpointer(dtype=np.float64, ndim=2, flags='C_CONTIGUOUS'),
+    np.ctypeslib.ndpointer(dtype=np.float32, ndim=2, flags='C_CONTIGUOUS'),
     #atomic velocities for selection
-    np.ctypeslib.ndpointer(dtype=np.float64, ndim=2, flags='C_CONTIGUOUS'),
+    np.ctypeslib.ndpointer(dtype=np.float32, ndim=2, flags='C_CONTIGUOUS'),
     #residue list to store residue properties
     ct.POINTER(t_residueList),
     #number of correlation times to allocate arrays
@@ -199,21 +199,21 @@ class vdos:
         self.nCorr = nCorr
         self.nRes = sel.residues.n_residues
         # time and frequency axes for correlation functions and VDoS
-        self.tau = np.zeros(nCorr, dtype = np.float64)
-        self.wavenumber = np.zeros(nCorr, dtype = np.float64)
+        self.tau = np.zeros(nCorr, dtype = np.float32)
+        self.wavenumber = np.zeros(nCorr, dtype = np.float32)
         # numpy arrays for average (index 0) and per residue VACF & VDoS (in 3D-2PT for each voxel)
         # -> total VACF / VDoS (1D)
         # -> translation VACF / VDoS (3D)
         # -> rotation VACF / VDoS (3D)
         # -> rotatable bonds VACF / VDoS (1D)
-        self.totVACF     = np.zeros((self.nRes+1,    nCorr), dtype = np.float64)
-        self.totVDoS     = np.zeros((self.nRes+1,    nCorr), dtype = np.float64)
-        self.trVACF      = np.zeros((self.nRes+1, 3, nCorr), dtype = np.float64)
-        self.trVDoS      = np.zeros((self.nRes+1, 3, nCorr), dtype = np.float64)
-        self.rotVACF     = np.zeros((self.nRes+1, 3, nCorr), dtype = np.float64)
-        self.rotVDoS     = np.zeros((self.nRes+1, 3, nCorr), dtype = np.float64)
-        self.rotBondVACF = np.zeros((self.nRes+1,    nCorr), dtype = np.float64)
-        self.rotBondVDoS = np.zeros((self.nRes+1,    nCorr), dtype = np.float64)
+        self.totVACF     = np.zeros((self.nRes+1,    nCorr), dtype = np.float32)
+        self.totVDoS     = np.zeros((self.nRes+1,    nCorr), dtype = np.float32)
+        self.trVACF      = np.zeros((self.nRes+1, 3, nCorr), dtype = np.float32)
+        self.trVDoS      = np.zeros((self.nRes+1, 3, nCorr), dtype = np.float32)
+        self.rotVACF     = np.zeros((self.nRes+1, 3, nCorr), dtype = np.float32)
+        self.rotVDoS     = np.zeros((self.nRes+1, 3, nCorr), dtype = np.float32)
+        self.rotBondVACF = np.zeros((self.nRes+1,    nCorr), dtype = np.float32)
+        self.rotBondVDoS = np.zeros((self.nRes+1,    nCorr), dtype = np.float32)
         # initialize residueList and MDinfo
         self.residueList, self.MDinfo = self.prep()
         # postProcessing flag
@@ -238,8 +238,8 @@ class vdos:
             error = clib.allocResidue(
                 ct.pointer(residueList.residues[r]),
                 ct.c_int(len(res.atoms)),
-                res.atoms.masses.astype(np.float64),
-                ct.c_double(res.mass.astype('float64')),
+                res.atoms.masses.astype(np.float32),
+                ct.c_float(res.mass.astype('float32')),
                 ct.c_int(self.sel.n_atoms),
                 ct.c_int(self.nCorr)
             )
@@ -272,8 +272,8 @@ class vdos:
         error=clib.processStep(
             ct.c_int(tStep),
             ct.pointer(self.MDinfo),
-            self.sel.atoms.positions.astype(np.float64),
-            self.sel.atoms.velocities.astype(np.float64),
+            self.sel.atoms.positions.astype(np.float32),
+            self.sel.atoms.velocities.astype(np.float32),
             ct.pointer(self.residueList),
             ct.c_int(self.nCorr)
         )
@@ -308,9 +308,9 @@ class vdos:
 
     def symFT(self,input,output):
         '''symmetrize, Fourier transform and return first half of spectrum'''
-        data = np.array(input, dtype = np.float64)
+        data = np.array(input, dtype = np.float32)
         nData=len(data)
-        tmp = np.zeros(2 * nData - 1, dtype = np.float64)
+        tmp = np.zeros(2 * nData - 1, dtype = np.float32)
         for i in range(nData):
             tmp[i] = data[i]
         for i in range(1,nData):
@@ -361,8 +361,8 @@ class vdos:
         outFile.close()
 
 # %%
-TOPOL = "/Users/mheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE.tpr"
-TRAJ = "/Users/mheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE_test.trr"
+TOPOL = "/Users/matthiasheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE.tpr"
+TRAJ = "/Users/matthiasheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE_test.trr"
 u = mda.Universe(TOPOL,TRAJ)
 trees = unwrap.unwrap.buildTrees(u)
 sel = u.select_atoms("resname POPC")
@@ -381,3 +381,14 @@ vdos.postProcess()
 vdos.outputGeometry("residueProperties.dat")
 vdos.outputVACF("VACF.dat")
 vdos.outputVDoS("VDoS.dat")
+
+# %%
+# plot
+data=np.array(vdos.totVDoS[0])
+fig, ax = plt.subplots()
+ax.plot(vdos.tau, data, linewidth = 2.0)
+ax.set(xlim=(0, 1.8), xticks=np.arange(0,1.8,0.2),
+       ylim=(0, 400000.0), yticks=np.arange(0,400001,100000))
+plt.show()
+
+
