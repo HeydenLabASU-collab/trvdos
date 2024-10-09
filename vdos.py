@@ -1,11 +1,8 @@
 # %%
 import ctypes as ct
 import MDAnalysis as mda
-import MDA_unwrap_PBC as pbc
-from scipy.fft import fft, ifft, dct, idct
+from scipy.fft import fft
 import numpy as np
-import matplotlib.pyplot as plt
-from tqdm import tqdm
 
 # %%
 # ctype data structures for rotatable bonds
@@ -97,11 +94,11 @@ class t_MDinfo(ct.Structure):
 
 # %%
 #load the shared library with C routines
-clib = ct.cdll.LoadLibrary("vdos.so")
+vdosLib = ct.cdll.LoadLibrary("libvdos.so")
 
 # %%
 # allocate residues in residueList
-clib.allocResidueList.argtypes = [
+vdosLib.allocResidueList.argtypes = [
     # list of residues in selection
     ct.POINTER(t_residueList),
     # number of residues in selection
@@ -109,10 +106,10 @@ clib.allocResidueList.argtypes = [
     # number of correlation times to allocate arrays
     ct.c_int32
 ]
-clib.allocResidueList.restype = ct.c_int32
+vdosLib.allocResidueList.restype = ct.c_int32
 
 # allocate MDinfo
-clib.allocMDinfo.argtypes = [
+vdosLib.allocMDinfo.argtypes = [
     # list of residues in selection
     ct.POINTER(t_MDinfo),
     # number of correlation times
@@ -120,10 +117,10 @@ clib.allocMDinfo.argtypes = [
     # number of atoms in selection
     ct.c_int32
 ]
-clib.allocMDinfo.restype = ct.c_int32
+vdosLib.allocMDinfo.restype = ct.c_int32
 
 # allocate all arrays needed for residue and set constant pointers
-clib.allocResidue.argtypes = [
+vdosLib.allocResidue.argtypes = [
     # pointer to residue
     ct.POINTER(t_residue),
     # number of atoms in residue
@@ -138,19 +135,19 @@ clib.allocResidue.argtypes = [
     # number of correlation times to allocate arrays
     ct.c_int32
 ]
-clib.allocResidue.restype = ct.c_int32
+vdosLib.allocResidue.restype = ct.c_int32
 
 # set pointers to atom coordinates and velocities for each residue
-clib.setArrayIndexOffsets.argtypes = [
+vdosLib.setArrayIndexOffsets.argtypes = [
     # pointer to residue list
     ct.POINTER(t_residueList),
     # pointer to MDinfo
     ct.POINTER(t_MDinfo)
 ]
-clib.setArrayIndexOffsets.restype = ct.c_int32
+vdosLib.setArrayIndexOffsets.restype = ct.c_int32
 
 #find rotatable bonds in all residues
-clib.getRotBonds.argtypes = [
+vdosLib.getRotBonds.argtypes = [
     # sets of residues
     ct.POINTER(t_residueList),
     # number of residues
@@ -164,10 +161,10 @@ clib.getRotBonds.argtypes = [
     # number of correlation times to allocate arrays
     ct.c_int32
 ]
-clib.getRotBonds.restype = ct.c_int32
+vdosLib.getRotBonds.restype = ct.c_int32
 
 #process simulation time step
-clib.processStep.argtypes = [
+vdosLib.processStep.argtypes = [
     #time step
     ct.c_int32,
     #structure to store MD atomic corrdinates and buffer of velocities
@@ -181,16 +178,16 @@ clib.processStep.argtypes = [
     #number of correlation times to allocate arrays
     ct.c_int32
 ]
-clib.processStep.restype = ct.c_int32
+vdosLib.processStep.restype = ct.c_int32
 
 # post-processing of correlation functions
-clib.postProcess.argtypes = [
+vdosLib.postProcess.argtypes = [
     #time step
     ct.POINTER(t_residueList),
     #number of correlation times
     ct.c_int32
 ]
-clib.postProcess.restype = ct.c_int32
+vdosLib.postProcess.restype = ct.c_int32
 
 # %%
 class vdos:
@@ -222,20 +219,20 @@ class vdos:
     def prep(self):
         '''construct list of residues for selection'''
         residueList = t_residueList()
-        error = clib.allocResidueList(
+        error = vdosLib.allocResidueList(
             ct.pointer(residueList),
             ct.c_int(self.nRes),
             ct.c_int(self.nCorr)
         )
         MDinfo = t_MDinfo()
-        error = clib.allocMDinfo(
+        error = vdosLib.allocMDinfo(
             ct.pointer(MDinfo),
             ct.c_int(self.nCorr),
             ct.c_int(self.sel.n_atoms)
         )
         r = 0
         for res in self.sel.residues:
-            error = clib.allocResidue(
+            error = vdosLib.allocResidue(
                 ct.pointer(residueList.residues[r]),
                 ct.c_int(len(res.atoms)),
                 res.atoms.masses.astype(np.float32),
@@ -244,9 +241,9 @@ class vdos:
                 ct.c_int(self.nCorr)
             )
             if error != 0:
-                print(f'ERROR reported by \'clib.allocResidue\'\n')
+                print(f'ERROR reported by \'vdosLib.allocResidue\'\n')
             r += 1
-        clib.setArrayIndexOffsets(ct.pointer(residueList), ct.pointer(MDinfo))
+        vdosLib.setArrayIndexOffsets(ct.pointer(residueList), ct.pointer(MDinfo))
         dihed = self.sel.intra_dihedrals.indices.astype(np.int32)
         resAtomRangeList = np.zeros((len(self.sel.residues),2), dtype = np.int32)
         i = 0
@@ -254,7 +251,7 @@ class vdos:
             resAtomRangeList[i][0] = np.amin(res.atoms.indices)
             resAtomRangeList[i][1] = np.amax(res.atoms.indices)
             i += 1
-        error = clib.getRotBonds(
+        error = vdosLib.getRotBonds(
             ct.pointer(residueList),
             ct.c_int(self.nRes),
             dihed,
@@ -263,13 +260,13 @@ class vdos:
             self.nCorr
         )
         if error != 0:
-            print(f'ERROR reported by \'clib.getRotBonds\'\n')
+            print(f'ERROR reported by \'vdosLib.getRotBonds\'\n')
         return residueList, MDinfo
     
     def processStep(self,tStep,time):
         if tStep < self.nCorr:
             self.tau[tStep] = time
-        error=clib.processStep(
+        error=vdosLib.processStep(
             ct.c_int(tStep),
             ct.pointer(self.MDinfo),
             self.sel.atoms.positions.astype(np.float32),
@@ -281,7 +278,7 @@ class vdos:
     def postProcess(self):
         '''post-process correlation functions'''
         if not self.postProcessed:
-            clib.postProcess(ct.pointer(self.residueList), ct.c_int(self.nCorr))
+            vdosLib.postProcess(ct.pointer(self.residueList), ct.c_int(self.nCorr))
             period = (self.tau[1] - self.tau[0]) * (2 * self.nCorr - 1)
             wn0 = (1.0 / period) * 33.35641
             self.wavenumber = np.arange(0,self.nCorr) * wn0
@@ -348,7 +345,7 @@ class vdos:
     def outputVACF(self,outputFileName):
         outFile = open(outputFileName,"w")
         outFile.write("%-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s\n" % ("#Time (ps)","Translation x","Translation y","Translation z","Rotation x","Rotation y","Rotation z","Rotatable Bonds","Total"))
-        for i in range(vdos.nCorr):
+        for i in range(self.nCorr):
             outFile.write("%-20.6e %-20.6e %-20.6e %-20.6e %-20.6e %-20.6e %-20.6e %-20.6e %-20.6e\n" % (self.tau[i],self.trVACF[0][0][i],self.trVACF[0][1][i],self.trVACF[0][2][i],self.rotVACF[0][0][i],self.rotVACF[0][1][i],self.rotVACF[0][2][i],self.rotBondVACF[0][i],self.totVACF[0][i]))
         outFile.close()
         outFile.close()
@@ -356,39 +353,6 @@ class vdos:
     def outputVDoS(self,outputFileName):
         outFile = open(outputFileName,"w")
         outFile.write("%-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s %-20s\n" % ("#Wavenumber (cm^-1)","Translation x","Translation y","Translation z","Rotation x","Rotation y","Rotation z","Rotatable Bonds","Total"))
-        for i in range(vdos.nCorr):
+        for i in range(self.nCorr):
             outFile.write("%-20.6e %-20.6e %-20.6e %-20.6e %-20.6e %-20.6e %-20.6e %-20.6e %-20.6e\n" % (self.wavenumber[i],self.trVDoS[0][0][i],self.trVDoS[0][1][i],self.trVDoS[0][2][i],self.rotVDoS[0][0][i],self.rotVDoS[0][1][i],self.rotVDoS[0][2][i],self.rotBondVDoS[0][i],self.totVDoS[0][i]))
         outFile.close()
-
-# %%
-TOPOL = "/Users/matthiasheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE.tpr"
-TRAJ = "/Users/matthiasheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE_test.trr"
-u = mda.Universe(TOPOL,TRAJ)
-pbc = pbc.unwrap(u)
-sel = u.select_atoms("resname POPC")
-vdos = vdos(sel,200)
-
-# %%
-clib.omp_set_num_threads(4)
-tStep = 0
-for ts in tqdm(u.trajectory):
-    pbc.run()
-    vdos.processStep(tStep,ts.time)
-    tStep += 1
-
-# %%
-vdos.postProcess()
-vdos.outputGeometry("residueProperties.dat")
-vdos.outputVACF("VACF.dat")
-vdos.outputVDoS("VDoS.dat")
-
-# %%
-# plot
-data=np.array(vdos.totVDoS[0])
-fig, ax = plt.subplots()
-ax.plot(vdos.tau, data, linewidth = 2.0)
-ax.set(xlim=(0, 1.8), xticks=np.arange(0,1.8,0.2),
-       ylim=(0, 400000.0), yticks=np.arange(0,400001,100000))
-plt.show()
-
-
