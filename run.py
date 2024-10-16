@@ -8,8 +8,8 @@ from tqdm import tqdm
 import vdos as vd
 
 # %%
-TOPOL = "/Users/matthiasheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE.tpr"
-TRAJ = "/Users/matthiasheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE_test.trr"
+TOPOL = "/Users/mheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE.tpr"
+TRAJ = "/Users/mheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE_test.trr"
 u = mda.Universe(TOPOL,TRAJ)
 pbc = pbc.unwrap(u)
 sel = u.select_atoms("resname POPC")
@@ -19,7 +19,7 @@ vdos = vd.vdos(sel,200)
 vd.vdosLib.omp_set_num_threads(4)
 tStep = 0
 for ts in tqdm(u.trajectory):
-    pbc.run()
+    pbc.single_frame()
     vdos.processStep(tStep,ts.time)
     tStep += 1
 
