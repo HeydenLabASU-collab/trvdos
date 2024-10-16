@@ -263,7 +263,7 @@ class vdos:
             print(f'ERROR reported by \'vdosLib.getRotBonds\'\n')
         return residueList, MDinfo
     
-    def processStep(self,tStep,time):
+    def single_frame(self,tStep,time):
         if tStep < self.nCorr:
             self.tau[tStep] = time
         error=vdosLib.processStep(
