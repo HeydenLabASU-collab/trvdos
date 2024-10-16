@@ -11,7 +11,7 @@ import vdos as vd
 TOPOL = "/Users/mheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE.tpr"
 TRAJ = "/Users/mheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE_test.trr"
 u = mda.Universe(TOPOL,TRAJ)
-pbc = pbc.unwrap(u)
+unwrap = pbc.unwrap(u)
 sel = u.select_atoms("resname POPC")
 vdos = vd.vdos(sel,200)
 
@@ -19,7 +19,7 @@ vdos = vd.vdos(sel,200)
 vd.vdosLib.omp_set_num_threads(4)
 tStep = 0
 for ts in tqdm(u.trajectory):
-    pbc.single_frame()
+    unwrap.single_frame()
     vdos.single_frame(tStep,ts.time)
     tStep += 1
 
