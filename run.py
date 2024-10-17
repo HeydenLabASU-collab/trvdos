@@ -8,8 +8,8 @@ from tqdm import tqdm
 import vdos as vd
 
 # %%
-TOPOL = "/Users/mheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE.tpr"
-TRAJ = "/Users/mheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE_test.trr"
+TOPOL = "/Users/matthiasheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE.tpr"
+TRAJ = "/Users/matthiasheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE_test.trr"
 u = mda.Universe(TOPOL,TRAJ)
 unwrap = pbc.unwrap(u)
 sel = u.select_atoms("resname POPC")
@@ -24,8 +24,10 @@ for ts in tqdm(u.trajectory):
     tStep += 1
 
 # %%
-vdos.postProcess()
-vdos.outputGeometry("residueProperties.dat")
+# we post-process a copy of our data allowing us to keep accumulating data
+vdos.copyResidueList()
+vdos.postProcess(vdos.residueListCopy)
+vdos.outputGeometry("residueProperties.dat",vdos.residueListCopy)
 vdos.outputVACF("VACF.dat")
 vdos.outputVDoS("VDoS.dat")
 
