@@ -18,3 +18,4 @@ backup/*
 old/*
 legacy/
 /__pycache__
+/__pycache__
