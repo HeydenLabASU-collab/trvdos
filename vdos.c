@@ -146,6 +146,7 @@ typedef struct {
     double logInertia[3];
     double rotBondInertia;
     double logRotBondInertia;
+    int postProcessed;
 } t_residueList;
 
 typedef struct {
@@ -598,6 +599,47 @@ int processStep(int tStep,t_MDinfo *MDinfo,float *crds,float *vels,t_residueList
             computeRotBondCorr(resNumBufferShiftCorrRef,&residueList->residues[i],MDinfo);
             residueList->residues[i].corrCnt++;
         }
+    }
+    return 0;
+}
+
+int copyResidueListData(t_residueList *dst,t_residueList *src,int nCorr) {
+    int i,j,k;
+
+    for(j=0;j<nCorr;j++) {
+        dst->totCorr[j]=src->totCorr[j];
+        for(k=0;k<3;k++) {
+            dst->trCorr[j*3+k]=src->trCorr[j*3+k];
+            dst->rotCorr[j*3+k]=src->rotCorr[j*3+k];
+        }
+        dst->rotBondCorr[j]=src->rotBondCorr[j];
+    }
+    for(k=0;k<3;k++) {
+        dst->inertia[k]=src->inertia[k];
+        dst->logInertia[k]=src->logInertia[k];
+    }
+    dst->rotBondInertia=src->rotBondInertia;
+    dst->logRotBondInertia=src->logRotBondInertia;
+
+    for(i=0;i<src->nResidues;i++) {
+        for(j=0;j<nCorr;j++) {
+            dst->residues[i].totCorr[j]=src->residues[i].totCorr[j];
+            for(k=0;k<3;k++) {
+                dst->residues[i].trCorr[j*3+k]=src->residues[i].trCorr[j*3+k];
+                dst->residues[i].rotCorr[j*3+k]=src->residues[i].rotCorr[j*3+k];
+            }
+            dst->residues[i].rotBondCorr[j]=src->residues[i].rotBondCorr[j];
+        }
+        for(k=0;k<3;k++) {
+            dst->residues[i].sumInertia[k]=src->residues[i].sumInertia[k];
+            dst->residues[i].sumLogInertia[k]=src->residues[i].sumLogInertia[k];
+        }
+        for(k=0;k<src->residues[i].nRotBonds;k++) {
+            dst->residues[i].rotBonds[k].sumInertia=src->residues[i].rotBonds[k].sumInertia;
+            dst->residues[i].rotBonds[k].sumLogInertia=src->residues[i].rotBonds[k].sumLogInertia;
+        }
+        dst->residues[i].corrCnt=src->residues[i].corrCnt;
+        dst->residues[i].propCnt=src->residues[i].propCnt;
     }
     return 0;
 }

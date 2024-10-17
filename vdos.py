@@ -69,7 +69,8 @@ class t_residueList(ct.Structure):
                 ("inertia", ct.c_double*3),
                 ("logInertia", ct.c_double*3),
                 ("rotBondInertia", ct.c_double),
-                ("logRotBondInertia", ct.c_double)
+                ("logRotBondInertia", ct.c_double),
+                ("postProcessed", ct.c_int32)
                 )
     
 class t_MDinfo(ct.Structure):
@@ -180,6 +181,16 @@ vdosLib.processStep.argtypes = [
 ]
 vdosLib.processStep.restype = ct.c_int32
 
+vdosLib.copyResidueListData.argtypes = [
+    #pointer to residue list copy (dst)
+    ct.POINTER(t_residueList),
+    #pointer to residue list (src))
+    ct.POINTER(t_residueList),
+    #number of correlation times
+    ct.c_int32
+]
+vdosLib.copyResidueListData.restype = ct.c_int32
+
 # post-processing of correlation functions
 vdosLib.postProcess.argtypes = [
     #time step
@@ -212,9 +223,9 @@ class vdos:
         self.rotBondVACF = np.zeros((self.nRes+1,    nCorr), dtype = np.float32)
         self.rotBondVDoS = np.zeros((self.nRes+1,    nCorr), dtype = np.float32)
         # initialize residueList and MDinfo
-        self.residueList, self.MDinfo = self.prep()
-        # postProcessing flag
-        self.postProcessed = False
+        self.residueList, self.MDinfo, self.residueListCopy = self.prep()
+        self.residueList.postProcessed = 0
+        self.residueListCopy.postProcessed = 0
 
     def prep(self):
         '''construct list of residues for selection'''
@@ -261,7 +272,39 @@ class vdos:
         )
         if error != 0:
             print(f'ERROR reported by \'vdosLib.getRotBonds\'\n')
-        return residueList, MDinfo
+
+        # the copy is meant for intermediate postprocessing, i.e., live monitoring
+        residueListCopy = t_residueList()
+        error = vdosLib.allocResidueList(
+            ct.pointer(residueListCopy),
+            ct.c_int(self.nRes),
+            ct.c_int(self.nCorr)
+        )
+        r = 0
+        for res in self.sel.residues:
+            error = vdosLib.allocResidue(
+                ct.pointer(residueListCopy.residues[r]),
+                ct.c_int(len(res.atoms)),
+                res.atoms.masses.astype(np.float32),
+                ct.c_float(res.mass.astype('float32')),
+                ct.c_int(self.sel.n_atoms),
+                ct.c_int(self.nCorr)
+            )
+            if error != 0:
+                print(f'ERROR reported by \'vdosLib.allocResidue\'\n')
+            r += 1
+        vdosLib.setArrayIndexOffsets(ct.pointer(residueListCopy), ct.pointer(MDinfo))
+        error = vdosLib.getRotBonds(
+            ct.pointer(residueListCopy),
+            ct.c_int(self.nRes),
+            dihed,
+            ct.c_int(len(dihed)),
+            resAtomRangeList,
+            self.nCorr
+        )
+        if error != 0:
+            print(f'ERROR reported by \'vdosLib.getRotBonds\'\n')
+        return residueList, MDinfo, residueListCopy
     
     def single_frame(self,tStep,time):
         if tStep < self.nCorr:
@@ -275,33 +318,42 @@ class vdos:
             ct.c_int(self.nCorr)
         )
 
-    def postProcess(self):
+    def copyResidueList(self):
+        '''copy residueList to residueListCopy'''
+        vdosLib.copyResidueListData(
+            ct.pointer(self.residueListCopy), 
+            ct.pointer(self.residueList), 
+            ct.c_int(self.nCorr)
+        )
+        self.residueListCopy.postProcessed = 0        
+
+    def postProcess(self,residueList):
         '''post-process correlation functions'''
-        if not self.postProcessed:
-            vdosLib.postProcess(ct.pointer(self.residueList), ct.c_int(self.nCorr))
+        if residueList.postProcessed == 0:
+            vdosLib.postProcess(ct.pointer(residueList), ct.c_int(self.nCorr))
             period = (self.tau[1] - self.tau[0]) * (2 * self.nCorr - 1)
             wn0 = (1.0 / period) * 33.35641
             self.wavenumber = np.arange(0,self.nCorr) * wn0
-            self.totVACF[0] = self.residueList.totCorr[0:self.nCorr]
+            self.totVACF[0] = residueList.totCorr[0:self.nCorr]
             self.symFT(self.totVACF[0], self.totVDoS[0])
             for i in range(3):
-                self.trVACF[0][i] = self.residueList.trCorr[i:3*self.nCorr:3]
+                self.trVACF[0][i] = residueList.trCorr[i:3*self.nCorr:3]
                 self.symFT(self.trVACF[0][i], self.trVDoS[0][i])
-                self.rotVACF[0][i] = self.residueList.rotCorr[i:3*self.nCorr:3]
+                self.rotVACF[0][i] = residueList.rotCorr[i:3*self.nCorr:3]
                 self.symFT(self.rotVACF[0][i], self.rotVDoS[0][i])
-            self.rotBondVACF[0] = self.residueList.rotBondCorr[0:self.nCorr]
+            self.rotBondVACF[0] = residueList.rotBondCorr[0:self.nCorr]
             self.symFT(self.rotBondVACF[0], self.rotBondVDoS[0])
             for i in range(1,self.nRes+1):
-                self.totVACF[i] = self.residueList.residues[i-1].totCorr[0:self.nCorr]
+                self.totVACF[i] = residueList.residues[i-1].totCorr[0:self.nCorr]
                 self.symFT(self.totVACF[i], self.totVDoS[i])
                 for j in range(3):
-                    self.trVACF[i][j] = self.residueList.residues[i-1].trCorr[j:3*self.nCorr:3]
+                    self.trVACF[i][j] = residueList.residues[i-1].trCorr[j:3*self.nCorr:3]
                     self.symFT(self.trVACF[i][j], self.trVDoS[i][j])
-                    self.rotVACF[i][j] = self.residueList.residues[i-1].rotCorr[j:3*self.nCorr:3]
+                    self.rotVACF[i][j] = residueList.residues[i-1].rotCorr[j:3*self.nCorr:3]
                     self.symFT(self.rotVACF[i][j], self.rotVDoS[i][j])
-                self.rotBondVACF[i] = self.residueList.residues[i-1].rotBondCorr[0:self.nCorr]
+                self.rotBondVACF[i] = residueList.residues[i-1].rotBondCorr[0:self.nCorr]
                 self.symFT(self.rotBondVACF[i], self.rotBondVDoS[i])
-            self.postProcessed = True
+            residueList.postProcessed = 1
 
     def symFT(self,input,output):
         '''symmetrize, Fourier transform and return first half of spectrum'''
@@ -317,20 +369,20 @@ class vdos:
         for i in range(nData):
             output[i] = tmp[i].real
     
-    def outputGeometry(self,outputFileName):
+    def outputGeometry(self,outputFileName,residueList):
         totMass = 0.0
         for i in range(self.nRes):
-            totMass += self.residueList.residues[i].resMass
+            totMass += residueList.residues[i].resMass
         averMass = totMass / self.nRes
-        averInertia = self.residueList.inertia[0:3]
-        averLogInertia = self.residueList.logInertia[0:3]
+        averInertia = residueList.inertia[0:3]
+        averLogInertia = residueList.logInertia[0:3]
         averRotBondCount = 0
         for i in range(self.nRes):
-            averRotBondCount += self.residueList.residues[i].nRotBonds
+            averRotBondCount += residueList.residues[i].nRotBonds
         averRotBondCount /= self.nRes
         if averRotBondCount > 0:
-            averRotBondInertia = self.residueList.rotBondInertia / averRotBondCount
-            averLogRotBondInertia = self.residueList.logRotBondInertia / averRotBondCount
+            averRotBondInertia = residueList.rotBondInertia / averRotBondCount
+            averLogRotBondInertia = residueList.logRotBondInertia / averRotBondCount
         else:
             averRotBondInertia = 0.0
             averLogRotBondInertia = 0.0
