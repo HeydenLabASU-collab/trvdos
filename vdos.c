@@ -951,6 +951,10 @@ int getRotBonds(t_residueList *sets,int nSets,int *dihedAtomIndices,int nDih,int
             }
         }
         // fclose(debug);
+    } else {
+        for(i=0;i<nSets;i++) {
+            sets->residues[i].nRotBonds=0;
+        }
     }
     return 0;
 }
