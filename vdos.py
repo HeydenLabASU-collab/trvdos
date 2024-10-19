@@ -192,13 +192,13 @@ vdosLib.copyResidueListData.argtypes = [
 vdosLib.copyResidueListData.restype = ct.c_int32
 
 # post-processing of correlation functions
-vdosLib.postProcess.argtypes = [
+vdosLib.sumData.argtypes = [
     #time step
     ct.POINTER(t_residueList),
     #number of correlation times
     ct.c_int32
 ]
-vdosLib.postProcess.restype = ct.c_int32
+vdosLib.sumData.restype = ct.c_int32
 
 # %%
 class vdos:
@@ -330,7 +330,7 @@ class vdos:
     def postProcess(self,residueList):
         '''post-process correlation functions'''
         if residueList.postProcessed == 0:
-            vdosLib.postProcess(ct.pointer(residueList), ct.c_int(self.nCorr))
+            vdosLib.sumData(ct.pointer(residueList), ct.c_int(self.nCorr))
             period = (self.tau[1] - self.tau[0]) * (2 * self.nCorr - 1)
             wn0 = (1.0 / period) * 33.35641
             self.wavenumber = np.arange(0,self.nCorr) * wn0

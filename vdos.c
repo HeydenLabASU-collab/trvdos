@@ -644,38 +644,34 @@ int copyResidueListData(t_residueList *dst,t_residueList *src,int nCorr) {
     return 0;
 }
 
-int postProcess(t_residueList *residueList,int nCorr) {
-    int i,j,k;
+int normResData(t_residue *res,int nCorr) {
+    int j,k;
     int normFactor;
 
-    for(i=0;i<residueList->nResidues;i++) {
-        normFactor=residueList->residues[i].corrCnt;
-        for(j=0;j<nCorr;j++) {
-            residueList->residues[i].totCorr[j]/=normFactor;
-            residueList->totCorr[j]+=residueList->residues[i].totCorr[j];
-            for(k=0;k<3;k++) {
-                residueList->residues[i].trCorr[j*3+k]/=normFactor;
-                residueList->residues[i].rotCorr[j*3+k]/=normFactor;
-                residueList->trCorr[j*3+k]+=residueList->residues[i].trCorr[j*3+k];
-                residueList->rotCorr[j*3+k]+=residueList->residues[i].rotCorr[j*3+k];
-            }
-            residueList->residues[i].rotBondCorr[j]/=normFactor;
-            residueList->rotBondCorr[j]+=residueList->residues[i].rotBondCorr[j];
-        }
-        normFactor=residueList->residues[i].propCnt;
+    normFactor=res->corrCnt;
+    for(j=0;j<nCorr;j++) {
+        res->totCorr[j]/=normFactor;
         for(k=0;k<3;k++) {
-            residueList->residues[i].sumInertia[k]/=normFactor;
-            residueList->residues[i].sumLogInertia[k]/=normFactor;
-            residueList->inertia[k]+=residueList->residues[i].sumInertia[k];
-            residueList->logInertia[k]+=residueList->residues[i].sumLogInertia[k];
+            res->trCorr[j*3+k]/=normFactor;
+            res->rotCorr[j*3+k]/=normFactor;
         }
-        for(k=0;k<residueList->residues[i].nRotBonds;k++) {
-            residueList->residues[i].rotBonds[k].sumInertia/=normFactor;
-            residueList->residues[i].rotBonds[k].sumLogInertia/=normFactor;
-            residueList->rotBondInertia+=residueList->residues[i].rotBonds[k].sumInertia;
-            residueList->logRotBondInertia+=residueList->residues[i].rotBonds[k].sumLogInertia;
-        }
+        res->rotBondCorr[j]/=normFactor;
     }
+    normFactor=res->propCnt;
+    for(k=0;k<3;k++) {
+        res->sumInertia[k]/=normFactor;
+        res->sumLogInertia[k]/=normFactor;
+    }
+    for(k=0;k<res->nRotBonds;k++) {
+        res->rotBonds[k].sumInertia/=normFactor;
+        res->rotBonds[k].sumLogInertia/=normFactor;
+    }
+    return 0;
+}
+
+int normResListData(t_residueList *residueList,int nCorr) {
+    int j,k;
+    int normFactor;
 
     normFactor=residueList->nResidues;
     for(j=0;j<nCorr;j++) {
@@ -692,6 +688,34 @@ int postProcess(t_residueList *residueList,int nCorr) {
     }
     residueList->rotBondInertia/=normFactor;
     residueList->logRotBondInertia/=normFactor;
+    return 0;
+}
+
+int sumData(t_residueList *residueList,int nCorr) {
+    int i,j,k;
+    int normFactor;
+
+    for(i=0;i<residueList->nResidues;i++) {
+        normResData(&residueList->residues[i],nCorr);
+        for(j=0;j<nCorr;j++) {
+            residueList->totCorr[j]+=residueList->residues[i].totCorr[j];
+            for(k=0;k<3;k++) {
+                residueList->trCorr[j*3+k]+=residueList->residues[i].trCorr[j*3+k];
+                residueList->rotCorr[j*3+k]+=residueList->residues[i].rotCorr[j*3+k];
+            }
+            residueList->rotBondCorr[j]+=residueList->residues[i].rotBondCorr[j];
+        }
+        normFactor=residueList->residues[i].propCnt;
+        for(k=0;k<3;k++) {
+            residueList->inertia[k]+=residueList->residues[i].sumInertia[k];
+            residueList->logInertia[k]+=residueList->residues[i].sumLogInertia[k];
+        }
+        for(k=0;k<residueList->residues[i].nRotBonds;k++) {
+            residueList->rotBondInertia+=residueList->residues[i].rotBonds[k].sumInertia;
+            residueList->logRotBondInertia+=residueList->residues[i].rotBonds[k].sumLogInertia;
+        }
+    }
+    normResListData(residueList,nCorr);
     return 0;
 }
 
