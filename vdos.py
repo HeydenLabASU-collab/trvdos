@@ -191,14 +191,22 @@ vdosLib.copyResidueListData.argtypes = [
 ]
 vdosLib.copyResidueListData.restype = ct.c_int32
 
-# post-processing of correlation functions
-vdosLib.postProcess.argtypes = [
+# normalize data in single residue
+vdosLib.normResData.argtypes = [
+    ct.POINTER(t_residue),
+    #number of correlation times
+    ct.c_int32
+]
+vdosLib.normResData.restype = ct.c_int32
+
+# normalize data for all residues and sum up for residue list
+vdosLib.sumData.argtypes = [
     #time step
     ct.POINTER(t_residueList),
     #number of correlation times
     ct.c_int32
 ]
-vdosLib.postProcess.restype = ct.c_int32
+vdosLib.sumData.restype = ct.c_int32
 
 # %%
 class vdos:
@@ -327,31 +335,52 @@ class vdos:
         )
         self.residueListCopy.postProcessed = 0        
 
-    def postProcess(self,residueList):
+    def postProcess(self,residueList, mode = "all", resIdx = 0):
         '''post-process correlation functions'''
         if residueList.postProcessed == 0:
-            vdosLib.postProcess(ct.pointer(residueList), ct.c_int(self.nCorr))
             period = (self.tau[1] - self.tau[0]) * (2 * self.nCorr - 1)
             wn0 = (1.0 / period) * 33.35641
             self.wavenumber = np.arange(0,self.nCorr) * wn0
-            self.totVACF[0] = residueList.totCorr[0:self.nCorr]
-            self.symFT(self.totVACF[0], self.totVDoS[0])
-            for i in range(3):
-                self.trVACF[0][i] = residueList.trCorr[i:3*self.nCorr:3]
-                self.symFT(self.trVACF[0][i], self.trVDoS[0][i])
-                self.rotVACF[0][i] = residueList.rotCorr[i:3*self.nCorr:3]
-                self.symFT(self.rotVACF[0][i], self.rotVDoS[0][i])
-            self.rotBondVACF[0] = residueList.rotBondCorr[0:self.nCorr]
-            self.symFT(self.rotBondVACF[0], self.rotBondVDoS[0])
-            for i in range(1,self.nRes+1):
-                self.totVACF[i] = residueList.residues[i-1].totCorr[0:self.nCorr]
+            if mode =="single":
+                vdosLib.normResData(ct.pointer(residueList.residues[resIdx]), ct.c_int(self.nCorr))
+            elif mode == "all" or mode == "total" or mode == "total+single":
+                vdosLib.sumData(ct.pointer(residueList), ct.c_int(self.nCorr))
+                self.totVACF[0] = residueList.totCorr[0:self.nCorr]
+                self.symFT(self.totVACF[0], self.totVDoS[0])
+                for i in range(3):
+                    self.trVACF[0][i] = residueList.trCorr[i:3*self.nCorr:3]
+                    self.symFT(self.trVACF[0][i], self.trVDoS[0][i])
+                    self.rotVACF[0][i] = residueList.rotCorr[i:3*self.nCorr:3]
+                    self.symFT(self.rotVACF[0][i], self.rotVDoS[0][i])
+                self.rotBondVACF[0] = residueList.rotBondCorr[0:self.nCorr]
+                self.symFT(self.rotBondVACF[0], self.rotBondVDoS[0])
+            else:
+                print('ERROR: unknown mode in postProcess')
+                raise ValueError
+            if mode == "all":
+                for i in range(1,self.nRes+1):
+                    self.totVACF[i] = residueList.residues[i-1].totCorr[0:self.nCorr]
+                    self.symFT(self.totVACF[i], self.totVDoS[i])
+                    for j in range(3):
+                        self.trVACF[i][j] = residueList.residues[i-1].trCorr[j:3*self.nCorr:3]
+                        self.symFT(self.trVACF[i][j], self.trVDoS[i][j])
+                        self.rotVACF[i][j] = residueList.residues[i-1].rotCorr[j:3*self.nCorr:3]
+                        self.symFT(self.rotVACF[i][j], self.rotVDoS[i][j])
+                    self.rotBondVACF[i] = residueList.residues[i-1].rotBondCorr[0:self.nCorr]
+                    self.symFT(self.rotBondVACF[i], self.rotBondVDoS[i])
+            elif mode == "single" or mode == "total+single":
+                if mode == "single":
+                    i = 0
+                else:
+                    i = 1
+                self.totVACF[i] = residueList.residues[resIdx].totCorr[0:self.nCorr]
                 self.symFT(self.totVACF[i], self.totVDoS[i])
                 for j in range(3):
-                    self.trVACF[i][j] = residueList.residues[i-1].trCorr[j:3*self.nCorr:3]
+                    self.trVACF[i][j] = residueList.residues[resIdx].trCorr[j:3*self.nCorr:3]
                     self.symFT(self.trVACF[i][j], self.trVDoS[i][j])
-                    self.rotVACF[i][j] = residueList.residues[i-1].rotCorr[j:3*self.nCorr:3]
+                    self.rotVACF[i][j] = residueList.residues[resIdx].rotCorr[j:3*self.nCorr:3]
                     self.symFT(self.rotVACF[i][j], self.rotVDoS[i][j])
-                self.rotBondVACF[i] = residueList.residues[i-1].rotBondCorr[0:self.nCorr]
+                self.rotBondVACF[i] = residueList.residues[resIdx].rotBondCorr[0:self.nCorr]
                 self.symFT(self.rotBondVACF[i], self.rotBondVDoS[i])
             residueList.postProcessed = 1
 
