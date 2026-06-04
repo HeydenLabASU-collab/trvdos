@@ -95,7 +95,7 @@ class t_MDinfo(ct.Structure):
 
 # %%
 #load the shared library with C routines
-vdosLib = ct.cdll.LoadLibrary("libvdos.so")
+vdosLib = ct.cdll.LoadLibrary("/nfs/homes3/lrepa/Projects/Summer26_streaming/MDA-3D-2PT/libvdos.so")
 
 # %%
 # allocate residues in residueList
