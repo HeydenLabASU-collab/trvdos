@@ -5,7 +5,7 @@ import MDA_unwrap_PBC as pbc
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-import mda_3d_2pt as vd
+import trvdos as vd
 
 
 # %%

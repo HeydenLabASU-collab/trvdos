@@ -1,17 +1,15 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(mda_3d_2pt C)
+project(trvdos C)
 
 find_package(GSL REQUIRED)
 find_package(OpenMP REQUIRED)
 
 add_library(vdos SHARED
-    mda_3d_2pt/csrc/vdos.c
-)
+    trvdos/csrc/vdos.c)
 
 set_target_properties(vdos PROPERTIES
-    POSITION_INDEPENDENT_CODE ON
-)
+    POSITION_INDEPENDENT_CODE ON)
 
 target_link_libraries(vdos
     PRIVATE
@@ -21,5 +19,4 @@ target_link_libraries(vdos
 
 set_target_properties(vdos PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY
-        ${CMAKE_SOURCE_DIR}/mda_3d_2pt/_lib
-)
+        ${CMAKE_SOURCE_DIR}/trvdos/_lib)

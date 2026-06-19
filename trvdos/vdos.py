@@ -3,6 +3,7 @@ import ctypes as ct
 import MDAnalysis as mda
 from scipy.fft import fft
 import numpy as np
+from pathlib import Path
 
 # %%
 # ctype data structures for rotatable bonds
@@ -95,7 +96,8 @@ class t_MDinfo(ct.Structure):
 
 # %%
 #load the shared library with C routines
-vdosLib = ct.cdll.LoadLibrary("/nfs/homes3/lrepa/Projects/Summer26_streaming/MDA-3D-2PT/libvdos.so")
+_LIB = Path(__file__).parent / "_lib" / "libvdos.so"
+vdosLib = ct.CDLL(str(_LIB))
 
 # %%
 # allocate residues in residueList

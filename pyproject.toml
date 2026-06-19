@@ -17,7 +17,7 @@ build-dir = "build/{wheel_tag}"
 editable.rebuild = true
 
 [project]
-name = "mda_3d_2pt"
+name = "trvdos"
 description = "Development of 3D-2PT package for MDAnalysis (with compatibility for complex solvent molecules)"
 license = "MIT"
 license-files = ["LICENSE", "AUTHORS.md"]
@@ -59,12 +59,12 @@ doc = [
 # documentation = "https://mda_3d_2pt.readthedocs.io"
 
 [tool.setuptools.packages.find]
-include = ["mda_3d_2pt"]
+include = ["trvdos*"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = [
-    "mda_3d_2pt/tests",
+    "trvdos/tests",
 ]
 
 [tool.black]
