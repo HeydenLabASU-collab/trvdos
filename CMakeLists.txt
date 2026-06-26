@@ -20,3 +20,8 @@ target_link_libraries(vdos
 set_target_properties(vdos PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY
         ${CMAKE_SOURCE_DIR}/trvdos/_lib)
+
+install(TARGETS vdos
+        LIBRARY DESTINATION trvdos/_lib
+        RUNTIME DESTINATION trvdos/_lib
+        ARCHIVE DESTINATION trvdos/_lib)
