@@ -4,6 +4,7 @@ import MDAnalysis as mda
 from scipy.fft import fft
 import numpy as np
 from pathlib import Path
+import platform
 
 # %%
 # ctype data structures for rotatable bonds
@@ -95,9 +96,16 @@ class t_MDinfo(ct.Structure):
                 )
 
 # %%
-#load the shared library with C routines
-_LIB = Path(__file__).parent / "_lib" / "libvdos.so"
-vdosLib = ct.CDLL(str(_LIB))
+_libdir = Path(__file__).parent / "_lib"
+
+if platform.system() == "Darwin":
+    libname = "libvdos.dylib"
+elif platform.system() == "Windows":
+    libname = "vdos.dll"
+else:
+    libname = "libvdos.so"
+
+vdosLib = ct.CDLL(str(_libdir / libname))
 
 # %%
 # allocate residues in residueList
