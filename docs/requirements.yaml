@@ -1,0 +1,11 @@
+name: mda_3d_2pt-docs
+channels:
+  - conda-forge
+dependencies:
+    # Base depends
+  - python
+  - pip
+
+  - mdanalysis-sphinx-theme >=1.0.1
+    # Pip-only installs
+  #- pip:

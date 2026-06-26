@@ -5,11 +5,12 @@ import MDA_unwrap_PBC as pbc
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-import vdos as vd
+import trvdos as vd
+
 
 # %%
-TOPOL = "/Users/matthiasheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE.tpr"
-TRAJ = "/Users/matthiasheyden/Dropbox (ASU)/ASU-Research/POPC/run-NVE_test.trr"
+TOPOL = "mda_3d_2pt/data/run-NVE.tpr"
+TRAJ = "mda_3d_2pt/data/run-NVE_test.trr"
 u = mda.Universe(TOPOL,TRAJ)
 unwrap = pbc.unwrap(u)
 sel = u.select_atoms("resname POPC")

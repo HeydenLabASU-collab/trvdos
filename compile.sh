@@ -1,4 +1,8 @@
 #!/bin/bash
 
-gcc -O3 -fopenmp -fpic -lgsl -lgslcblas -c vdos.c
-gcc -shared -lgomp -lgsl -lgslcblas vdos.o -o libvdos.so
+gcc -shared vdos.o \
+    -lgomp \
+    -lgsl \
+    -lgslcblas \
+    -lm \
+    -o libvdos.so

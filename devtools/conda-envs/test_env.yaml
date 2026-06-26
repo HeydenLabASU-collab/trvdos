@@ -1,0 +1,22 @@
+name: mda_3d_2pt-test
+channels:
+
+  - conda-forge
+
+dependencies:
+  # Base depends
+  - python
+  - pip
+
+  # MDAnalysis
+  - mdanalysis
+
+  # Testing
+  - pytest
+  - pytest-cov
+  - pytest-xdist
+  - codecov
+
+  # Pip-only installs
+  #- pip:
+  #  - codecov
