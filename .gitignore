@@ -10,7 +10,8 @@
 # Data files #
 ##################
 *.dat
-
+*.trr
+*.tpr
 # Backup files #
 ###################
 *.backup
