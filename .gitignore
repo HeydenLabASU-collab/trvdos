@@ -12,7 +12,8 @@
 *.dat
 *.trr
 *.tpr
-
+!run-NVE.tpr
+!run-NVE_trunc.trr
 # Backup files #
 ###################
 *.backup
