@@ -39,9 +39,7 @@ keywords = [
 classifiers = [
     "Programming Language :: Python :: 3",
 ]
-dynamic = [
-    "version",
-]
+version = "0.0.2"
 
 [project.optional-dependencies]
 test = [
@@ -69,20 +67,6 @@ testpaths = [
 
 [tool.black]
 line-length = 80
-
-[tool.versioningit]
-default-version = "1+unknown"
-
-[tool.versioningit.vcs]
-method = "git"
-# the below line expects tags to look like '1.0.2'.
-# if prefixing with a v, e.g. 'v1.0.2', change it to ["v*"]
-match = ["*"]
-
-[tool.versioningit.format]
-distance = "{base_version}+{distance}.{vcs}{rev}"
-dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
-distance-dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
 
 [tool.coverage.run]
 omit = [

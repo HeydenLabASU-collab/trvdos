@@ -104,7 +104,6 @@ elif platform.system() == "Windows":
     libname = "vdos.dll"
 else:
     libname = "libvdos.so"
-
 vdosLib = ct.CDLL(str(_libdir / libname))
 
 # %%
