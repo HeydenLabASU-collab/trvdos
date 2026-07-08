@@ -5,7 +5,8 @@ dependencies:
     # Base depends
   - python
   - pip
-
+  - gsl
+  - mdanalysis
   - mdanalysis-sphinx-theme >=1.0.1
     # Pip-only installs
   #- pip:
