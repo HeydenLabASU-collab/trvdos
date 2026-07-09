@@ -14,6 +14,9 @@
 *.tpr
 !run-NVE.tpr
 !run-NVE_trunc.trr
+!trvdos/tests/expected_outputs/*
+*.npz
+*.pyc
 # Backup files #
 ###################
 *.backup
@@ -132,3 +135,6 @@ ENV/
 
 # poetry
 poetry.lock
+
+*.pyc
+*.npz

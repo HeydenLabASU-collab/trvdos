@@ -9,7 +9,7 @@ Global pytest fixtures
 
 import pytest
 
-from mda_3d_2pt.data.files import MDANALYSIS_LOGO
+from trvdos.data.files import MDANALYSIS_LOGO
 
 
 @pytest.fixture

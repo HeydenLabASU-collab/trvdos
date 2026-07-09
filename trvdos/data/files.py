@@ -14,6 +14,6 @@ __all__ = [
 
 import importlib.resources
 
-data_directory = importlib.resources.files("mda_3d_2pt") / "data"
+data_directory = importlib.resources.files("trvdos") / "data"
 
 MDANALYSIS_LOGO = data_directory / "mda.txt"
