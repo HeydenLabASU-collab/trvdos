@@ -14,7 +14,13 @@ build:
   os: ubuntu-22.04
   tools:
     python: "mambaforge-4.10"
-
+  jobs:
+    pre_build:
+      - which gsl-config
+      - gsl-config --version
+      - echo $CONDA_PREFIX
+      - ls $CONDA_PREFIX/include/gsl
+      - ls $CONDA_PREFIX/lib/libgsl*
 python:
   install:
     - method: pip
