@@ -16,13 +16,13 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath("../.."))
-import mda_3d_2pt  # noqa
+import trvdos  # noqa
 
 
 
 # -- Project information -----------------------------------------------------
 
-project = "MDA-3D-2PT"
+project = "trvdos"
 copyright = (
     "2026, Matthias Heyden. "
     "Project structure based on the "
@@ -61,7 +61,7 @@ autosummary_generate = True
 # when using the autosummary directive that is included
 # by default in api.rst
 autodoc_mock_imports = [
-    'mda_3d_2pt.tests'
+    'trvdos.tests'
 ]
 napoleon_google_docstring = False
 napoleon_use_param = False
@@ -136,7 +136,7 @@ html_static_path = ["_static"]
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "mda_3d_2ptdoc"
+htmlhelp_basename = "trvdosdoc"
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -163,8 +163,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, "mda_3d_2pt.tex", "MDA-3D-2PT Documentation",
-     "mda_3d_2pt", "manual"),
+    (master_doc, "trvdos.tex", "trvdos Documentation",
+     "trvdos", "manual"),
 ]
 
 
@@ -173,7 +173,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, "mda_3d_2pt", "MDA-3D-2PT Documentation",
+    (master_doc, "trvdos", "trvdos Documentation",
      [author], 1)
 ]
 
@@ -184,8 +184,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, "mda_3d_2pt", "MDA-3D-2PT Documentation",
-     author, "mda_3d_2pt", "Development of 3D-2PT package for MDAnalysis (with compatibility for complex solvent molecules)",
+    (master_doc, "trvdos", "trvdos Documentation",
+     author, "trvdos", "Development of trvdos package for MDAnalysis (with compatibility for complex solvent molecules)",
      "Miscellaneous"),
 ]
 
