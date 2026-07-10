@@ -7,7 +7,7 @@ dependencies:
   - pip
   - gsl
   - mdanalysis
-
+  - pkg-config
   - mdanalysis-sphinx-theme >=1.0.1
     # Pip-only installs
   #- pip:
