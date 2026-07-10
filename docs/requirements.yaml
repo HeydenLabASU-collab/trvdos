@@ -1,13 +1,21 @@
-name: mda_3d_2pt-docs
+name: trvdos-docs
+
 channels:
   - conda-forge
+
 dependencies:
-    # Base depends
   - python
   - pip
+
+  # Build dependencies
   - gsl
-  - mdanalysis
   - pkg-config
-  - mdanalysis-sphinx-theme >=1.0.1
-    # Pip-only installs
-  #- pip:
+  - cmake
+  - ninja
+
+  # Runtime dependencies
+  - mdanalysis
+
+  # Documentation
+  - sphinx
+  - mdanalysis-sphinx-theme>=1.0.1

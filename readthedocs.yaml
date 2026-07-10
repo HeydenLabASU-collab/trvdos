@@ -1,28 +1,17 @@
-# readthedocs.yaml
-
 version: 2
-
-# Sphinx configuration
-sphinx:
-  configuration: docs/source/conf.py
-
-# Uncomment the following lines to enable MkDocs configuration
-# mkdocs:
-#   configuration: docs/mkdocs.yml
 
 build:
   os: ubuntu-22.04
   tools:
     python: "mambaforge-4.10"
-  commands:
-    - which python
-    - python -c "import sys; print(sys.prefix)"
-    - which gsl-config || true
-    - gsl-config --prefix || true
+
+sphinx:
+  configuration: docs/source/conf.py
+
+conda:
+  environment: docs/requirements.yaml
+
 python:
   install:
     - method: pip
       path: .
-
-conda:
-  environment: docs/requirements.yaml
