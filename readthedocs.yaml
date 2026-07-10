@@ -1,21 +1,12 @@
 version: 2
 
-sphinx:
-  configuration: docs/source/conf.py
-
 build:
   os: ubuntu-22.04
-
   tools:
-    python: "mambaforge-4.10"
+    python: "3.12"
 
-  jobs:
-    post_create_environment:
-      - python -c "import sys; print(sys.executable)"
-      - python -c "import sys; print(sys.prefix)"
-      - which gsl-config
-      - gsl-config --version
-      - gsl-config --prefix
+sphinx:
+  configuration: docs/source/conf.py
 
 conda:
   environment: docs/requirements.yaml
@@ -24,5 +15,3 @@ python:
   install:
     - method: pip
       path: .
-      install_args:
-        - --no-build-isolation
