@@ -7,15 +7,10 @@ dependencies:
   - python
   - pip
 
-  # Build dependencies
+  # C library
   - gsl
   - pkg-config
-  - cmake
-  - ninja
 
-  # Runtime dependencies
+  # Python dependencies
   - mdanalysis
-
-  # Documentation
-  - sphinx
   - mdanalysis-sphinx-theme>=1.0.1
