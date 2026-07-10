@@ -37,7 +37,7 @@ keywords = [
 classifiers = [
     "Programming Language :: Python :: 3",
 ]
-version = "0.0.3"
+version = "0.0.2"
 
 [project.optional-dependencies]
 test = [
@@ -51,8 +51,8 @@ doc = [
 ]
 
 # [project.urls]
-# source = "https://github.com/HeydenLabASU-collab/trvdos"
-# documentation = "https://trvdos.readthedocs.io"
+# source = "https://github.com/HeydenLabASU/mda_3d_2pt"
+# documentation = "https://mda_3d_2pt.readthedocs.io"
 
 [tool.setuptools.packages.find]
 include = ["trvdos*"]

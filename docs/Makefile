@@ -4,7 +4,7 @@
 # You can set these variables from the command line.
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
-SPHINXPROJ    = trvdos
+SPHINXPROJ    = mda_3d_2pt
 SOURCEDIR     = source
 BUILDDIR      = _build
 

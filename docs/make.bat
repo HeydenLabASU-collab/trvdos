@@ -9,7 +9,7 @@ if "%SPHINXBUILD%" == "" (
 )
 set SOURCEDIR=.
 set BUILDDIR=_build
-set SPHINXPROJ=trvdos
+set SPHINXPROJ=mda_3d_2pt
 
 if "%1" == "" goto help
 
