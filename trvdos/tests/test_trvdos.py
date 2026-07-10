@@ -146,6 +146,7 @@ def test_fulltraj_rotBondVACF(expected_fulltraj, fulltraj):
 
 def test_fulltraj_rotBondVDoS(expected_fulltraj, fulltraj):
     assert np.array_equal(expected_fulltraj.get('rotBondVDOS'), fulltraj.rotBondVDoS)
+
     
 def test_residue_properties_output(expected_resprops_path, resprops_path, fulltraj_fileoutput):
     import re
