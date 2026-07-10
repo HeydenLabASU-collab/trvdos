@@ -2,6 +2,13 @@ if(DEFINED ENV{CONDA_PREFIX})
     list(PREPEND CMAKE_PREFIX_PATH "$ENV{CONDA_PREFIX}")
 endif()
 
+execute_process(
+    COMMAND ${GSL_CONFIG} --prefix
+    OUTPUT_VARIABLE GSL_PREFIX
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+message(STATUS "GSL prefix = ${GSL_PREFIX}")
+
 cmake_minimum_required(VERSION 3.15)
 
 project(trvdos C)
