@@ -11,7 +11,23 @@ message(STATUS "GSL_ROOT_DIR=${GSL_ROOT_DIR}")
 find_program(GSL_CONFIG_EXECUTABLE gsl-config)
 message(STATUS "gsl-config=${GSL_CONFIG_EXECUTABLE}")
 
-find_package(GSL REQUIRED)
+find_program(GSL_CONFIG gsl-config REQUIRED)
+
+execute_process(
+    COMMAND ${GSL_CONFIG} --cflags
+    OUTPUT_VARIABLE GSL_CFLAGS
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+execute_process(
+    COMMAND ${GSL_CONFIG} --libs
+    OUTPUT_VARIABLE GSL_LIBS
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+separate_arguments(GSL_CFLAGS)
+separate_arguments(GSL_LIBS)
+
+target_compile_options(vdos PRIVATE ${GSL_CFLAGS})
+target_link_options(vdos PRIVATE ${GSL_LIBS})
 find_package(OpenMP REQUIRED)
 
 add_library(vdos SHARED
