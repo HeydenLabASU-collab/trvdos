@@ -6,6 +6,11 @@ cmake_minimum_required(VERSION 3.15)
 
 project(trvdos C)
 
+message(STATUS "CONDA_PREFIX=$ENV{CONDA_PREFIX}")
+message(STATUS "GSL_ROOT_DIR=${GSL_ROOT_DIR}")
+find_program(GSL_CONFIG_EXECUTABLE gsl-config)
+message(STATUS "gsl-config=${GSL_CONFIG_EXECUTABLE}")
+
 find_package(GSL REQUIRED)
 find_package(OpenMP REQUIRED)
 
