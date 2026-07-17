@@ -39,9 +39,6 @@ def expected_fulltraj():
         return pickle.load(file)
 
 
-
-
-
 @pytest.fixture
 def singlestep():
     TOPOL = Path(__file__).parent / "inputs/run-NVE.tpr"
