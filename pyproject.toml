@@ -51,8 +51,8 @@ doc = [
 ]
 
 # [project.urls]
-# source = "https://github.com/HeydenLabASU/mda_3d_2pt"
-# documentation = "https://mda_3d_2pt.readthedocs.io"
+# source = "https://github.com/HeydenLabASU-collab/trvdos"
+# documentation = "https://trvdos.readthedocs.io"
 
 [tool.setuptools.packages.find]
 include = ["trvdos*"]
