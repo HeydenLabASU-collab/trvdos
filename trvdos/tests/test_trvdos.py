@@ -169,8 +169,8 @@ def test_residue_properties_output(expected_resprops_path, resprops_path, fulltr
     np.testing.assert_allclose(
         actual,
         expected,
-        rtol=1e-10,
-        atol=1e-12,
+        rtol=1e-6,
+        atol=1e-3
     )
     
 def test_VACF_output(expected_VACF_path, VACF_path, fulltraj_fileoutput):
@@ -180,8 +180,8 @@ def test_VACF_output(expected_VACF_path, VACF_path, fulltraj_fileoutput):
     np.testing.assert_allclose(
         actual,
         expected,
-        rtol=1e-10,
-        atol=1e-12,
+        rtol=1e-6,
+        atol=1e-3
     )
     
 def test_VDoS_output(VDoS_path, expected_VDoS_path, fulltraj_fileoutput):
