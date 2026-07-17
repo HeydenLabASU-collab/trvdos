@@ -10,7 +10,7 @@ dependencies:
   - ninja
   - gsl
   - pkg-config
-  - scikit-build-cores
+  - scikit-build-core
   - sphinx
   - mdanalysis
   - mdanalysis-sphinx-theme
