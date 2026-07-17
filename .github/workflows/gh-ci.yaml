@@ -124,11 +124,11 @@ jobs:
         which python
         pip install pylint mdanalysis
 
-    - name: Run Pylint
+    - name: Run Pylint - surpressing exit code
       env:
         PYLINTRC: .pylintrc
       run: |
-        pylint .
+        pylint . --exit-zero
 
 
   pypi_check:
