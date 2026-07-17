@@ -89,7 +89,7 @@ jobs:
         pytest -n 2 -v --cov=trvdos--cov-report=xml --color=yes trvdos/tests/
 
     - name: codecov
-      if: github.repository == 'HeydenLabASU-collab/trvdos && github.event_name != 'schedule'
+      if: github.repository == 'HeydenLabASU-collab/trvdos' && github.event_name != 'schedule'
       uses: codecov/codecov-action@v5
       with:
         file: coverage.xml
