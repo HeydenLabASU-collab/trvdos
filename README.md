@@ -42,14 +42,14 @@ Create a virtual environment and activate it:
 
 ```
 conda create --name trvdos
-conda activate mda_3d_2pt
+conda activate trvdos
 ```
 
 Install the development and documentation dependencies:
 
 ```
-conda env update --name mda_3d_2pt --file devtools/conda-envs/test_env.yaml
-conda env update --name mda_3d_2pt --file docs/requirements.yaml
+conda env update --name trvdos --file devtools/conda-envs/test_env.yaml
+conda env update --name trvdos --file docs/requirements.yaml
 ```
 
 Build this package from source:
