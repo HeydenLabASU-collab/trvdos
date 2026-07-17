@@ -86,7 +86,7 @@ jobs:
 
     - name: Run tests
       run: |
-        pytest -n 2 -v --cov=trvdos--cov-report=xml --color=yes trvdos/tests/
+        pytest -n 2 -v --cov=trvdos --cov-report=xml --color=yes trvdos/tests/
 
     - name: codecov
       if: github.repository == 'HeydenLabASU-collab/trvdos' && github.event_name != 'schedule'
