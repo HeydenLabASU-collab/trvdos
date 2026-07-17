@@ -14,3 +14,7 @@ dependencies:
   - sphinx
   - mdanalysis
   - mdanalysis-sphinx-theme
+  - pytest
+  - pytest-cov
+  - pytest-xdist
+  - codecov
