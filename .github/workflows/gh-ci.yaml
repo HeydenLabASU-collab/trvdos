@@ -128,7 +128,7 @@ jobs:
       env:
         PYLINTRC: .pylintrc
       run: |
-        pylint . --exit-zero
+        pylint . --exit-zero --load-plugins=pylint_pytest
 
 
   pypi_check:
