@@ -10,7 +10,7 @@ dependencies:
   - ninja
   - gsl
   - pkg-config
-  - scikit-build-core
+  - scikit-build-cores
   - sphinx
   - mdanalysis
   - mdanalysis-sphinx-theme
@@ -18,4 +18,3 @@ dependencies:
   - pytest-cov
   - pytest-xdist
   - codecov
-  - pylint-pytest
