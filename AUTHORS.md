@@ -1,10 +1,10 @@
 # Authors
 
-MDA-3D-2PT was created by Matthias Heyden in 2026.
+trvdos was created by Matthias Heyden in 2026.
 
 
 All contributing authors are listed in this file below.
-The repository history at https://github.com/HeydenLabASU/mda_3d_2pt
+The repository history at https://github.com/HeydenLabASU-collab/trvdos
 and the CHANGELOG show individual code contributions.
 
 ## Chronological list of authors
