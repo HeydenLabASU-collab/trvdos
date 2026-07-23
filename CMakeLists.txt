@@ -11,7 +11,10 @@ add_library(vdos SHARED
 
 set_target_properties(vdos PROPERTIES
     POSITION_INDEPENDENT_CODE ON
+
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/trvdos/_lib
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/trvdos/_lib
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/trvdos/_lib
 )
 
 target_link_libraries(vdos

@@ -82,35 +82,11 @@ jobs:
 
         conda info
         conda list
-        
-    - name: Inspect installed package
-      run: |
-        python -c "import pathlib, site; \
-    print('=== Site packages ==='); \
-    [print(p) for p in site.getsitepackages()]; \
-    print('\n=== Installed trvdos libraries ==='); \
-    [print(x) for p in site.getsitepackages() for pat in ('vdos.dll','libvdos.so','libvdos.dylib') for x in pathlib.Path(p).rglob(pat)]"
 
-    - name: Search runtime libraries
+    - name: Check native library
+      shell: bash
       run: |
-        python -c "import pathlib, sys; \
-    root=pathlib.Path(sys.prefix); \
-    print('Searching under', root); \
-    patterns=('gsl*.dll','libgcc*.dll','libgomp*.dll','libwinpthread*.dll','vcomp*.dll'); \
-    found=False; \
-    for pat in patterns: \
-        for f in root.rglob(pat): \
-            print(f); found=True; \
-    print('No matching runtime DLLs found.' if not found else '')"
-
-    - name: Dump package contents
-      run: |
-        python -c "import pathlib, importlib.util; \
-    spec=importlib.util.find_spec('trvdos'); \
-    p=pathlib.Path(spec.origin).parent; \
-    print('Package location:', p); \
-    [print(x.relative_to(p)) for x in p.rglob('*')]"
-
+        ls -R trvdos/_lib
 
     - name: Run tests
       run: |
