@@ -10,6 +10,7 @@ add_library(vdos SHARED
 )
 
 set_target_properties(vdos PROPERTIES
+    WINDOWS_EXPORT_ALL_SYMBOLS TRUE
     POSITION_INDEPENDENT_CODE ON
 
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/trvdos/_lib
