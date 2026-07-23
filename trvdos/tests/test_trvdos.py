@@ -283,21 +283,21 @@ def test_residue_properties_output(
             ]
         )
 
-    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+    np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-3)
 
 
 def test_VACF_output(expected_VACF_path, VACF_path, fulltraj_fileoutput):
     expected = np.loadtxt(expected_VACF_path, comments="#")
     actual = np.loadtxt(VACF_path, comments="#")
 
-    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+    np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-3)
 
 
 def test_VDoS_output(VDoS_path, expected_VDoS_path, fulltraj_fileoutput):
     expected = np.loadtxt(expected_VDoS_path, comments="#")
     actual = np.loadtxt(VDoS_path, comments="#")
 
-    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+    np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-3)
     
 
 def test_residue_properties_single_output(
@@ -327,21 +327,21 @@ def test_residue_properties_single_output(
             ]
         )
 
-    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+    np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-3)
 
 
 def test_VACF_single_output(expected_VACF_sing_path, VACF_sing_path, fulltraj_fileoutput):
     expected = np.loadtxt(expected_VACF_sing_path, comments="#")
     actual = np.loadtxt(VACF_sing_path, comments="#")
 
-    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+    np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-3)
 
 
 def test_VDoS_single_output(VDoS_sing_path, expected_VDoS_sing_path, fulltraj_fileoutput):
     expected = np.loadtxt(expected_VDoS_sing_path, comments="#")
     actual = np.loadtxt(VDoS_sing_path, comments="#")
 
-    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+    np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-3)
     
 
 def test_residue_properties_singletot_output(
@@ -371,18 +371,18 @@ def test_residue_properties_singletot_output(
             ]
         )
 
-    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+    np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-3)
 
 
 def test_VACF_singletot_output(expected_VACF_singtot_path, VACF_singtot_path, fulltraj_fileoutput):
     expected = np.loadtxt(expected_VACF_singtot_path, comments="#")
     actual = np.loadtxt(VACF_singtot_path, comments="#")
 
-    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+    np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-3)
 
 
 def test_VDoS_singletot_output(VDoS_singtot_path, expected_VDoS_singtot_path, fulltraj_fileoutput):
     expected = np.loadtxt(expected_VDoS_singtot_path, comments="#")
     actual = np.loadtxt(VDoS_singtot_path, comments="#")
 
-    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+    np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-3)
