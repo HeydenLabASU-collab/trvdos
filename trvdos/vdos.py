@@ -5,6 +5,8 @@ from scipy.fft import fft
 import numpy as np
 from pathlib import Path
 import platform
+import sys
+import os
 
 
 # %%
@@ -112,6 +114,7 @@ _libdir = Path(__file__).parent / "_lib"
 if platform.system() == "Darwin":
     libname = "libvdos.dylib"
 elif platform.system() == "Windows":
+    os.add_dll_directory(str(Path(sys.prefix) / "Library" / "bin"))
     libname = "vdos.dll"
 else:
     libname = "libvdos.so"
