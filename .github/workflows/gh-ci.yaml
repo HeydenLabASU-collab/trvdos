@@ -82,6 +82,29 @@ jobs:
 
         conda info
         conda list
+    - name: Check installed DLL
+      shell: pwsh
+      run: |
+        python - <<'PY'
+        import pathlib
+        import site
+
+        for p in site.getsitepackages():
+            p = pathlib.Path(p)
+            dlls = list(p.rglob("vdos.dll"))
+            print(p)
+            print(dlls)
+          PY
+      
+    - name: Show dependencies
+      shell: pwsh
+      run: |
+        Get-ChildItem $env:CONDA_PREFIX\Library\bin\gsl*.dll
+
+    - name: Find MinGW runtime
+      shell: pwsh
+      run: |
+        Get-ChildItem $env:CONDA_PREFIX -Recurse -Include libgcc*.dll,libgomp*.dll,libwinpthread*.dll
 
 
     - name: Run tests
