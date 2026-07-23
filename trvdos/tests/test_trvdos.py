@@ -30,6 +30,37 @@ def VDoS_path(tmp_path):
 
 
 @pytest.fixture
+def resprops_sing_path(tmp_path):
+    return tmp_path / "residueProperties_sing.dat"
+
+
+@pytest.fixture
+def VACF_sing_path(tmp_path):
+    return tmp_path / "VACF_sing.dat"
+
+
+@pytest.fixture
+def VDoS_sing_path(tmp_path):
+    return tmp_path / "VDoS_sing.dat"
+
+
+@pytest.fixture
+def resprops_singtot_path(tmp_path):
+    return tmp_path / "residueProperties_sing+tot.dat"
+
+
+@pytest.fixture
+def VACF_singtot_path(tmp_path):
+    return tmp_path / "VACF_sing+tot.dat"
+
+
+@pytest.fixture
+def VDoS_singtot_path(tmp_path):
+    return tmp_path / "VDoS_sing+tot.dat"
+
+
+
+@pytest.fixture
 def expected_singlestep():
     file_path = Path(__file__).parent / "expected_outputs" / "vdos_1step.pkl"
     with open(file_path, "rb") as file:
@@ -69,17 +100,6 @@ def fulltraj(resprops_path, VACF_path, VDoS_path):
 
 
 @pytest.fixture
-def fulltraj_fileoutput(fulltraj, resprops_path, VACF_path, VDoS_path):
-    # output files to temp path for later comparison
-    fulltraj.copyResidueList()
-    fulltraj.postProcess(fulltraj.residueListCopy, mode="all")
-    fulltraj.outputGeometry(resprops_path, fulltraj.residueListCopy)
-    fulltraj.outputVACF(VACF_path)
-    fulltraj.outputVDoS(VDoS_path)
-    return fulltraj
-
-
-@pytest.fixture
 def expected_resprops_path():
     return Path(__file__).parent / "expected_outputs/residueProperties.dat"
 
@@ -92,6 +112,65 @@ def expected_VACF_path():
 @pytest.fixture
 def expected_VDoS_path():
     return Path(__file__).parent / "expected_outputs/VDoS.dat"
+
+
+@pytest.fixture
+def expected_resprops_sing_path():
+    return Path(__file__).parent / "expected_outputs/residueProperties_sing.dat"
+
+
+@pytest.fixture
+def expected_VACF_sing_path():
+    return Path(__file__).parent / "expected_outputs/VACF_sing.dat"
+
+
+@pytest.fixture
+def expected_VDoS_sing_path():
+    return Path(__file__).parent / "expected_outputs/VDoS_sing.dat"
+
+
+
+@pytest.fixture
+def expected_resprops_singtot_path():
+    return Path(__file__).parent / "expected_outputs/residueProperties_sing+tot.dat"
+
+
+@pytest.fixture
+def expected_VACF_singtot_path():
+    return Path(__file__).parent / "expected_outputs/VACF_sing+tot.dat"
+
+
+@pytest.fixture
+def expected_VDoS_singtot_path():
+    return Path(__file__).parent / "expected_outputs/VDoS_sing+tot.dat"
+
+
+@pytest.fixture
+def fulltraj_fileoutput(fulltraj, 
+                        resprops_path, VACF_path, VDoS_path,
+                        resprops_sing_path, VACF_sing_path, VDoS_sing_path,
+                        resprops_singtot_path, VACF_singtot_path, VDoS_singtot_path,
+                        ):
+    # output files to temp path for later comparison
+    fulltraj.copyResidueList()
+    fulltraj.postProcess(fulltraj.residueListCopy, mode="all")
+    fulltraj.outputGeometry(resprops_path, fulltraj.residueListCopy)
+    fulltraj.outputVACF(VACF_path)
+    fulltraj.outputVDoS(VDoS_path)
+    
+    fulltraj.copyResidueList()
+    fulltraj.postProcess(fulltraj.residueListCopy, mode="single")
+    fulltraj.outputGeometry(resprops_sing_path, fulltraj.residueListCopy)
+    fulltraj.outputVACF(VACF_sing_path)
+    fulltraj.outputVDoS(VDoS_sing_path)
+    
+    fulltraj.copyResidueList()
+    fulltraj.postProcess(fulltraj.residueListCopy, mode="total+single")
+    fulltraj.outputGeometry(resprops_singtot_path, fulltraj.residueListCopy)
+    fulltraj.outputVACF(VACF_singtot_path)
+    fulltraj.outputVDoS(VDoS_singtot_path)
+    return fulltraj
+
 
 
 def test_trvdos_imported():
@@ -217,5 +296,93 @@ def test_VACF_output(expected_VACF_path, VACF_path, fulltraj_fileoutput):
 def test_VDoS_output(VDoS_path, expected_VDoS_path, fulltraj_fileoutput):
     expected = np.loadtxt(expected_VDoS_path, comments="#")
     actual = np.loadtxt(VDoS_path, comments="#")
+
+    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+    
+
+def test_residue_properties_single_output(
+    expected_resprops_sing_path, resprops_sing_path, fulltraj_fileoutput
+):
+    import re
+
+    with open(expected_resprops_sing_path) as f:
+        expected = np.array(
+            [
+                float(x)
+                for x in re.findall(
+                    r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?",
+                    f.read(),
+                )
+            ]
+        )
+
+    with open(resprops_sing_path) as f:
+        actual = np.array(
+            [
+                float(x)
+                for x in re.findall(
+                    r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?",
+                    f.read(),
+                )
+            ]
+        )
+
+    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+
+
+def test_VACF_single_output(expected_VACF_sing_path, VACF_sing_path, fulltraj_fileoutput):
+    expected = np.loadtxt(expected_VACF_sing_path, comments="#")
+    actual = np.loadtxt(VACF_sing_path, comments="#")
+
+    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+
+
+def test_VDoS_single_output(VDoS_sing_path, expected_VDoS_sing_path, fulltraj_fileoutput):
+    expected = np.loadtxt(expected_VDoS_sing_path, comments="#")
+    actual = np.loadtxt(VDoS_sing_path, comments="#")
+
+    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+    
+
+def test_residue_properties_singletot_output(
+    expected_resprops_singtot_path, resprops_singtot_path, fulltraj_fileoutput
+):
+    import re
+
+    with open(expected_resprops_singtot_path) as f:
+        expected = np.array(
+            [
+                float(x)
+                for x in re.findall(
+                    r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?",
+                    f.read(),
+                )
+            ]
+        )
+
+    with open(resprops_singtot_path) as f:
+        actual = np.array(
+            [
+                float(x)
+                for x in re.findall(
+                    r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?",
+                    f.read(),
+                )
+            ]
+        )
+
+    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+
+
+def test_VACF_singletot_output(expected_VACF_singtot_path, VACF_singtot_path, fulltraj_fileoutput):
+    expected = np.loadtxt(expected_VACF_singtot_path, comments="#")
+    actual = np.loadtxt(VACF_singtot_path, comments="#")
+
+    np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
+
+
+def test_VDoS_singletot_output(VDoS_singtot_path, expected_VDoS_singtot_path, fulltraj_fileoutput):
+    expected = np.loadtxt(expected_VDoS_singtot_path, comments="#")
+    actual = np.loadtxt(VDoS_singtot_path, comments="#")
 
     np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-3)
