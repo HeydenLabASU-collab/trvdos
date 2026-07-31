@@ -386,3 +386,6 @@ def test_VDoS_singletot_output(VDoS_singtot_path, expected_VDoS_singtot_path, fu
     actual = np.loadtxt(VDoS_singtot_path, comments="#")
 
     np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-3)
+
+def test_unwrap_loaded():
+    assert hasattr(vd, 'unwrap')

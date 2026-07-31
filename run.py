@@ -12,7 +12,7 @@ import trvdos as vd
 TOPOL = "mda_3d_2pt/data/run-NVE.tpr"
 TRAJ = "mda_3d_2pt/data/run-NVE_test.trr"
 u = mda.Universe(TOPOL,TRAJ)
-unwrap = pbc.unwrap(u)
+unwrap = vd.unwrap(u)
 sel = u.select_atoms("resname POPC")
 vdos = vd.vdos(sel,200)
 

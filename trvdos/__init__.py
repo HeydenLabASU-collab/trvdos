@@ -8,3 +8,4 @@ from importlib.metadata import version
 
 __version__ = version("trvdos")
 from .vdos import *
+from .unwrap import unwrap
