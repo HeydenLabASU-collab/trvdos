@@ -19,9 +19,9 @@ The rules for this file:
 ## [0.1.0] - 2026-08-07
 
 ### Authors
-[@HeydenLabASU]
-[@l-repa]
-[@orbeckst]
+[@HeydenLabASU]: https://github.com/HeydenLabASU
+[@l-repa]: https://github.com/l-repa
+[@orbeckst]: https://github.com/orbeckst
 
 ### Added
 - First MDAKit release
