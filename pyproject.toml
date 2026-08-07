@@ -16,7 +16,7 @@ editable.rebuild = true
 
 [project]
 name = "trvdos"
-description = "Development of 3D-2PT package for MDAnalysis (with compatibility for complex solvent molecules)"
+description = "Development of trvdos package for MDAnalysis (with compatibility for complex solvent molecules)"
 license = "MIT"
 license-files = ["LICENSE", "AUTHORS.md"]
 
