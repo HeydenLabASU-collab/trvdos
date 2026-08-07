@@ -16,12 +16,9 @@ The rules for this file:
   * accompany each entry with github issue/PR number (Issue #xyz)
 -->
 
-## [0.1.0] - 2026-08-07
+## [Unreleased]
 
-### Authors
-[@HeydenLabASU]: https://github.com/HeydenLabASU
-[@l-repa]: https://github.com/l-repa
-[@orbeckst]: https://github.com/orbeckst
+## [0.1.0] - 2026-08-07
 
 ### Added
 - First MDAKit release
@@ -40,3 +37,8 @@ N/A
 
 ### Removed
 N/A
+
+### Authors
+[@HeydenLabASU]: https://github.com/HeydenLabASU
+[@l-repa]: https://github.com/l-repa
+[@orbeckst]: https://github.com/orbeckst
