@@ -16,22 +16,27 @@ The rules for this file:
   * accompany each entry with github issue/PR number (Issue #xyz)
 -->
 
-## [Unreleased]
+## [0.1.0] - 2026-08-07
 
 ### Authors
-<!-- GitHub usernames of contributors to this release -->
+[@HeydenLabASU]
+[@l-repa]
+[@orbeckst]
 
 ### Added
-<!-- New added features -->
+- First MDAKit release
+- Calculation of VACF and VDoS from MD trajectories, input as MDAnalysis universes
+- Unwrapping of molecules across periodic boundary conditions to prepare for VACF / VDoS calculation
+- Compilation on Linux, Mac and Windows
 
 ### Fixed
-<!-- Bug fixes -->
+N/A
 
 ### Changed
-<!-- Changes in existing functionality -->
+N/A
 
 ### Deprecated
-<!-- Soon-to-be removed features -->
+N/A
 
 ### Removed
-<!-- Removed features -->
+N/A
