@@ -39,6 +39,6 @@ N/A
 N/A
 
 ### Authors
-[@HeydenLabASU]: https://github.com/HeydenLabASU
-[@l-repa]: https://github.com/l-repa
-[@orbeckst]: https://github.com/orbeckst
+@HeydenLabASU: https://github.com/HeydenLabASU
+@l-repa: https://github.com/l-repa
+@orbeckst: https://github.com/orbeckst
