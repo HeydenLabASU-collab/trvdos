@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 
 project(trvdos C)
 
-find_package(GSL REQUIRED)
+find_package(GSL REQUIRED HINTS ENV CONDA_PREFIX)
 find_package(OpenMP REQUIRED)
 
 add_library(vdos SHARED
