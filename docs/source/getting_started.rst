@@ -17,4 +17,13 @@ GSL can be installed and managed via conda / mamba:
 ``mamba install gsl``
 
 
+Example Usage
+*************
+
+trvdos uses MDAnalysis AtomGroups to handle MD trajectory data. As an example, we'll set up an MDAnalysis Universe using MD data stored in ``topol.tpr`` and ``traj.trr``:
+
+``import MDAnalysis as mda
+import trvdos
+u = mda.Universe("topol.tpr", "traj.trr")``
+
 
