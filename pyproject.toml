@@ -37,7 +37,7 @@ keywords = [
 classifiers = [
     "Programming Language :: Python :: 3",
 ]
-version = "0.0.4"
+version = "0.0.5"
 
 [project.optional-dependencies]
 test = [
