@@ -5,6 +5,7 @@
 
 Welcome to trvdos's documentation!
 =========================================================
+trvdos is a Python analysis module for calculating velocity autocorrelation functions (VACF) and velocity density of states (VDoS) from MD trajectories.
 
 .. toctree::
    :maxdepth: 2
