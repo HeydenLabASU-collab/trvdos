@@ -21,9 +21,59 @@ trvdos
 [url_license]: https://opensource.org/licenses/MIT
 [url_mda]: https://www.mdanalysis.org
 
-Development of trvdos package for MDAnalysis (with compatibility for complex solvent molecules)
+trvdos is a Python analysis module for calculating velocity autocorrelation functions (VACF) and velocity density of states (VDoS) from MD trajectories.
 
 trvdos is bound by a [Code of Conduct](https://github.com/HeydenLabASU-collab/trvdos/blob/main/CODE_OF_CONDUCT.md).
+
+### Example Usage
+```python
+from pathlib import Path
+import MDAnalysis as mda
+import matplotlib.pyplot as plt
+import numpy as np
+from tqdm import tqdm
+import trvdos as vd
+
+# Load in example trajectory
+path = (Path("..") / ".." / "trvdos" / "tests" / "inputs").resolve()
+TOPOL = path / "run-NVE.tpr"
+TRAJ = path / "run-NVE_trunc.trr"
+
+#Set up universe, unwrap traj, and select POPC atoms for VDOS object
+u = mda.Universe(TOPOL, TRAJ)
+unwrap = vd.unwrap(u)
+sel = u.select_atoms("resname POPC")
+
+# Create vdos object with a max lag time (nCorr) of 10 frames
+vdos = vd.vdos(sel, 10)
+
+# Step through trajectory, calculate VDoS at each frame
+t_step = 0
+for ts in tqdm(u.trajectory, total=len(u.trajectory)):
+    unwrap.single_frame()
+    vdos.single_frame(t_step, ts.time)
+    t_step += 1
+
+vdos.copyResidueList()
+
+# Collect the accumlated VaCFs and calculate VDoS - modes:
+# all: all-residue average plus per-residue
+# total: average only
+# single: per-residue only
+# total+single: all-residue average and per-residue average
+vdos.postProcess(vdos.residueListCopy, mode="all")
+
+# write residueproperties, VACF and VDoS out to text files if desired
+out_dir = Path(".").resolve()
+vdos.outputGeometry(out_dir / "residueProperties.dat", vdos.residueListCopy)
+vdos.outputVACF(out_dir / "VACF.dat")
+vdos.outputVDoS(out_dir / "VDoS.dat")
+
+# Wavenumber and correlation time arrays are available in vdos.wavenumber 
+# and vdos.tau resepectively
+print(f"Wavenumber axis spans 0 – {vdos.wavenumber[-1]:.1f} cm⁻¹")
+print(f"Correlation time axis spans 0 – {vdos.tau[-1]:.3f} ps")
+```
 
 ### Installation
 
